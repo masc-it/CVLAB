@@ -21,6 +21,7 @@ from file_selector import file_selector
 import threading
 import glob
 import ctypes
+from copy import deepcopy
 myappid = 'mascit.app.yololab' # arbitrary string
 ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
@@ -42,6 +43,20 @@ frame_data = {
         "image_width" : None,
         "image_height": None
     },
+    "labeling": {
+        "new_box_requested": False,
+        "curr_bbox": None,
+        "bboxes" : [{
+                    "x_min": 0,
+                    "y_min": 0,
+                    "x_max": 200,
+                    "y_max": 200,
+                    "label": "block"
+                }],
+        "was_mouse_down": False
+    },
+    "prev_cursor": glfw.ARROW_CURSOR,
+    "y_offset": 146,
     "progress": 0,
     "folder_path": "D:/Projects/python/semantics/project/test_final/imgs", #D:/Projects/python/semantics/project/test_final/images
     "model_path": "D:/Projects/python/pdf-toolbox/pdf_toolbox/backend/data/pdf_best_multi_nano.pt", #D:/Projects/python/pdf-toolbox/pdf_toolbox/backend/data/pdf_best_multi_nano.pt
@@ -86,7 +101,7 @@ def main_glfw():
     window = glfw_init()
     impl = GlfwRenderer(window)
     io = impl.io
-
+    frame_data["glfw"] = {"io": io, "window": window}
     x = im.load('chip.png')
     glfw.set_window_icon(window, 1, [(x.shape[1],x.shape[0], x)])
     
@@ -97,6 +112,7 @@ def main_glfw():
     io.fonts.add_font_from_file_ttf("Roboto-Regular.ttf", 18, io.fonts.get_glyph_ranges_latin())
     impl.refresh_font_texture()
     
+    frame_data["io"] = imgui.get_io()
     # frame_data["image_texture"], frame_data["image_width"], frame_data["image_height"] = load_image()
     prev_img = ""
     while not glfw.window_should_close(window):
@@ -116,7 +132,7 @@ def main_glfw():
         imgui.render()
         impl.render(imgui.get_draw_data())
         glfw.swap_buffers(window)
-        time.sleep(0.0013)
+        time.sleep(0.0007)
 
     impl.shutdown()
     glfw.terminate()
@@ -160,6 +176,8 @@ def start_inference(frame_data):
 def on_frame():
     global frame_data
 
+    labeling = frame_data["labeling"]
+
     if imgui.begin_main_menu_bar():
         if imgui.begin_menu("File", True):
             clicked_quit, selected_quit = imgui.menu_item(
@@ -178,8 +196,9 @@ def on_frame():
         | imgui.WINDOW_NO_RESIZE
         
     )
-    imgui.begin("Custom window", None, flags=flags)
     
+    imgui.begin("Custom window", None, flags=flags)
+        
     if frame_data["is_running"]:
         imgui.internal.push_item_flag(imgui.internal.ITEM_DISABLED, True)
         imgui.push_style_var(imgui.STYLE_ALPHA, imgui.get_style().alpha *  0.5)
@@ -233,6 +252,10 @@ def on_frame():
         imgui.pop_style_var()
 
     imgui.columns(1)
+    
+    #print(imgui.get_mouse_pos())
+    
+    
     if frame_data["is_running"]:
         start_clicked = imgui.button("Stop analysis")
     else:
@@ -254,8 +277,12 @@ def on_frame():
         else:
             frame_data["is_running"] = False
 
+    imgui.same_line()
+    annotate_click = imgui.button("New box" if not labeling["new_box_requested"] else "Cancel")        
 
-    
+    if annotate_click:
+        labeling["new_box_requested"] = not labeling["new_box_requested"]
+
     if frame_data["is_running"]:
         
         imgui.columns(3,"progr", False)
@@ -275,8 +302,8 @@ def on_frame():
         if frame_data["predictions"] is None:
             frame_data["predictions"] = glob.glob(frame_data["folder_path"] + "/exp/predictions/*.jpg")
         
-        
-        imgui.begin_child(label="files_list", width=(viewport[0] / 5), height=-1, border=False, )
+        x_offset = (viewport[0] / 5)
+        imgui.begin_child(label="files_list", width=x_offset, height=-1, border=False, )
         
         for i, p in enumerate(frame_data["predictions"]):
             clicked, _ = imgui.selectable(
@@ -291,6 +318,65 @@ def on_frame():
 
         if frame_data["selected_file"]["texture"] is not None:
             imgui.image(frame_data["selected_file"]["texture"], frame_data["selected_file"]["image_width"], frame_data["selected_file"]["image_height"])
+        
+        draw_list = imgui.get_window_draw_list()
+        
+        if not imgui.is_mouse_down() and labeling["was_mouse_down"]: # and add_new_bbox
+            labeling["was_mouse_down"] = False
+            labeling["new_box_requested"] = False
+            labeling["bboxes"].append(deepcopy(labeling["curr_bbox"]))
+            if labeling["curr_bbox"] is not None:
+                labeling["curr_bbox"] = None
+        elif imgui.is_mouse_down() and labeling["new_box_requested"]:
+
+            labeling["was_mouse_down"] = True
+            if labeling["curr_bbox"] is None:
+                # save coords relative to the image
+                labeling["curr_bbox"] = {
+                    "x_min": frame_data["io"].mouse_pos[0] - x_offset,
+                    "y_min": frame_data["io"].mouse_pos[1] + imgui.get_scroll_y() - frame_data["y_offset"],
+                    "label": "block"
+                }
+            labeling["curr_bbox"]["x_max"] = frame_data["io"].mouse_pos[0] - x_offset
+            labeling["curr_bbox"]["y_max"] = frame_data["io"].mouse_pos[1] + imgui.get_scroll_y() - frame_data["y_offset"]
+            # convert image coords to screen coords
+            draw_list.add_rect(
+                labeling["curr_bbox"]["x_min"] + x_offset, 
+                labeling["curr_bbox"]["y_min"] - imgui.get_scroll_y() +  frame_data["y_offset"], 
+                labeling["curr_bbox"]["x_max"] + x_offset, 
+                labeling["curr_bbox"]["y_max"] - imgui.get_scroll_y() +  frame_data["y_offset"], 
+                imgui.get_color_u32_rgba(1,0,0,1), thickness=2)
+        else:
+            found = False
+            for bbox in labeling["bboxes"]:
+                
+                draw_list.add_rect(
+                    bbox["x_min"] + x_offset, 
+                    bbox["y_min"] - imgui.get_scroll_y() +  frame_data["y_offset"], 
+                    bbox["x_max"] + x_offset, 
+                    bbox["y_max"] - imgui.get_scroll_y() +  frame_data["y_offset"], 
+                    imgui.get_color_u32_rgba(1,0,0,1),
+                    thickness=2
+                )
+                
+                if imgui.get_mouse_pos()[0] >= bbox["x_min"] + x_offset and\
+                    imgui.get_mouse_pos()[0] <= bbox["x_max"] + x_offset and\
+                    imgui.get_mouse_pos()[1] >= bbox["y_min"] - imgui.get_scroll_y() +  frame_data["y_offset"] and\
+                    imgui.get_mouse_pos()[1] <=  bbox["y_max"] - imgui.get_scroll_y() +  frame_data["y_offset"]:
+                    
+                    if frame_data["prev_cursor"] != glfw.HAND_CURSOR:
+                        glfw.set_cursor(frame_data["glfw"]["window"], glfw.create_standard_cursor(glfw.HAND_CURSOR))
+                        frame_data["prev_cursor"] = glfw.HAND_CURSOR
+                        #print("created")
+                    found = True
+
+                        
+            if frame_data["prev_cursor"] != glfw.ARROW_CURSOR and not found:
+                frame_data["prev_cursor"] = glfw.ARROW_CURSOR
+                glfw.set_cursor(frame_data["glfw"]["window"], glfw.create_standard_cursor(glfw.ARROW_CURSOR))
+                #print("normal")
+            
+
         imgui.end_child()
 
     imgui.end()
