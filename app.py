@@ -51,6 +51,8 @@ frame_data = {
                     "y_min": 0,
                     "x_max": 200,
                     "y_max": 200,
+                    "width": 200,
+                    "height": 200,
                     "label": "block"
                 }],
         "was_mouse_down": False
@@ -132,7 +134,7 @@ def main_glfw():
         imgui.render()
         impl.render(imgui.get_draw_data())
         glfw.swap_buffers(window)
-        time.sleep(0.0007)
+        time.sleep(0.0013)
 
     impl.shutdown()
     glfw.terminate()
@@ -324,6 +326,9 @@ def on_frame():
         if not imgui.is_mouse_down() and labeling["was_mouse_down"]: # and add_new_bbox
             labeling["was_mouse_down"] = False
             labeling["new_box_requested"] = False
+            labeling["curr_bbox"]["width"] = labeling["curr_bbox"]["x_max"] - labeling["curr_bbox"]["x_min"]
+            labeling["curr_bbox"]["height"] = labeling["curr_bbox"]["y_max"] - labeling["curr_bbox"]["y_min"]
+
             labeling["bboxes"].append(deepcopy(labeling["curr_bbox"]))
             if labeling["curr_bbox"] is not None:
                 labeling["curr_bbox"] = None
@@ -347,7 +352,8 @@ def on_frame():
                 labeling["curr_bbox"]["y_max"] - imgui.get_scroll_y() +  frame_data["y_offset"], 
                 imgui.get_color_u32_rgba(1,0,0,1), thickness=2)
         else:
-            found = False
+            # labeling["curr_box"] = None
+            found = []
             for bbox in labeling["bboxes"]:
                 
                 draw_list.add_rect(
@@ -358,25 +364,44 @@ def on_frame():
                     imgui.get_color_u32_rgba(1,0,0,1),
                     thickness=2
                 )
-                
-                if imgui.get_mouse_pos()[0] >= bbox["x_min"] + x_offset and\
-                    imgui.get_mouse_pos()[0] <= bbox["x_max"] + x_offset and\
-                    imgui.get_mouse_pos()[1] >= bbox["y_min"] - imgui.get_scroll_y() +  frame_data["y_offset"] and\
-                    imgui.get_mouse_pos()[1] <=  bbox["y_max"] - imgui.get_scroll_y() +  frame_data["y_offset"]:
+
+                if imgui.get_mouse_pos()[0] >= bbox["x_min"] + x_offset  and\
+                    imgui.get_mouse_pos()[0] <= bbox["x_max"] + x_offset  and\
+                    imgui.get_mouse_pos()[1] >= bbox["y_min"] - imgui.get_scroll_y() +  frame_data["y_offset"]  and\
+                    imgui.get_mouse_pos()[1] <=  bbox["y_max"] - imgui.get_scroll_y() +  frame_data["y_offset"] :
                     
                     if frame_data["prev_cursor"] != glfw.HAND_CURSOR:
                         glfw.set_cursor(frame_data["glfw"]["window"], glfw.create_standard_cursor(glfw.HAND_CURSOR))
                         frame_data["prev_cursor"] = glfw.HAND_CURSOR
                         #print("created")
-                    found = True
+                    found.append(bbox)
+                    """ if labeling["curr_bbox"] is None:
+                        labeling["curr_bbox"] = bbox """
+            ordered_found = sorted(found, key=lambda x: abs(imgui.get_mouse_pos()[0] - x["x_min"]))
 
-                        
-            if frame_data["prev_cursor"] != glfw.ARROW_CURSOR and not found:
+            if len(ordered_found) > 0 and labeling["curr_bbox"] is None:
+                labeling["curr_bbox"] = ordered_found[0]
+            if frame_data["prev_cursor"] != glfw.ARROW_CURSOR and found == [] and not imgui.is_mouse_down(1):
                 frame_data["prev_cursor"] = glfw.ARROW_CURSOR
                 glfw.set_cursor(frame_data["glfw"]["window"], glfw.create_standard_cursor(glfw.ARROW_CURSOR))
                 #print("normal")
             
+            if imgui.is_mouse_down() and labeling["curr_bbox"] is not None:
 
+                labeling["curr_bbox"]["x_min"] = frame_data["io"].mouse_pos[0] - x_offset - labeling["curr_bbox"]["width"]/2
+                labeling["curr_bbox"]["y_min"] = frame_data["io"].mouse_pos[1] + imgui.get_scroll_y() - frame_data["y_offset"] - labeling["curr_bbox"]["height"]/2
+                labeling["curr_bbox"]["x_max"] = labeling["curr_bbox"]["x_min"] + labeling["curr_bbox"]["width"]
+                labeling["curr_bbox"]["y_max"] = labeling["curr_bbox"]["y_min"] + labeling["curr_bbox"]["height"]
+            
+            if imgui.is_mouse_down(1) and labeling["curr_bbox"] is not None:
+
+                labeling["curr_bbox"]["x_max"] = frame_data["io"].mouse_pos[0] - x_offset
+                labeling["curr_bbox"]["y_max"] = frame_data["io"].mouse_pos[1] + imgui.get_scroll_y() - frame_data["y_offset"]
+                labeling["curr_bbox"]["width"] = abs(labeling["curr_bbox"]["x_max"] - labeling["curr_bbox"]["x_min"])
+                labeling["curr_bbox"]["height"] = abs(labeling["curr_bbox"]["y_max"] - labeling["curr_bbox"]["y_min"])
+            
+            if not imgui.is_mouse_down(0) and not imgui.is_mouse_down(1):
+                labeling["curr_bbox"] = None
         imgui.end_child()
 
     imgui.end()
