@@ -8,8 +8,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from pdf_toolbox.lib.dia_yolov5.models.common import Conv
-from pdf_toolbox.lib.dia_yolov5.utils.downloads import attempt_download
+from .common import Conv
+from utils.downloads import attempt_download
 
 
 class CrossConv(nn.Module):

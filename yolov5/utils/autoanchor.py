@@ -10,7 +10,7 @@ import torch
 import yaml
 from tqdm import tqdm
 
-from pdf_toolbox.lib.dia_yolov5.utils.general import LOGGER, colorstr, emojis
+from .general import LOGGER, colorstr, emojis
 
 PREFIX = colorstr('AutoAnchor: ')
 

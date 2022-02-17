@@ -17,11 +17,11 @@ if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))  # add ROOT to PATH
 # ROOT = ROOT.relative_to(Path.cwd())  # relative
 
-from pdf_toolbox.lib.dia_yolov5.models.common import *
-from pdf_toolbox.lib.dia_yolov5.models.experimental import *
-from pdf_toolbox.lib.dia_yolov5.utils.autoanchor import check_anchor_order
-from pdf_toolbox.lib.dia_yolov5.utils.general import LOGGER, make_divisible, print_args
-from pdf_toolbox.lib.dia_yolov5.utils.torch_utils import fuse_conv_and_bn, initialize_weights, model_info, scale_img, select_device, time_sync
+from .common import *
+from .experimental import *
+from utils.autoanchor import check_anchor_order
+from utils.general import LOGGER, make_divisible, print_args
+from utils.torch_utils import fuse_conv_and_bn, initialize_weights, model_info, scale_img, select_device, time_sync
 
 try:
     import thop  # for FLOPs computation
