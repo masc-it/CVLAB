@@ -36,10 +36,12 @@ frame_data = {
     "image_texture" : None,
     "done": False,
     "predictions" : None,
+    "imgs" : None,
     "selected_file" : {
         "path": None,
         "idx": 0,
         "texture":None,
+        "name": "",
         "image_width" : None,
         "image_height": None
     },
@@ -65,6 +67,35 @@ frame_data = {
     "threshold_conf": 0.55,
     "threshold_iou" : 0.45
 }
+
+def yolo_to_x0y0(yolo_pred, input_w, input_h, target_w, target_h):
+
+    # yolo_x = (x+(w/2))/img_w
+    # x_c = (yolo_x) * img_w - (w/2)
+
+    # yolo_width = w/img_w
+    # w = yolo_width * img_w
+
+    # target_size / input_size
+    x_scale = target_w / input_w
+    y_scale = target_h / input_h
+
+    # convert from yolo [x_c, y_c, w_norm, h_norm] to [x0,y0,x1,y1]
+    bbox_w = yolo_pred[2] * input_w
+    bbox_h = yolo_pred[3] * input_h
+    x0_orig = yolo_pred[0] * input_w - (bbox_w/2)
+    y0_orig = yolo_pred[1] * input_h - (bbox_h/2)
+
+    x1_orig = x0_orig + bbox_w
+    y1_orig = y0_orig + bbox_h
+
+    # scale accoring to target_size
+    x = int(x0_orig * x_scale)
+    y = int(y0_orig * y_scale)
+    xmax = int(x1_orig * x_scale)
+    ymax = int(y1_orig * y_scale)
+
+    return [x, y, xmax, ymax]
 
 def fb_to_window_factor(window):
     win_w, win_h = glfw.get_window_size(window)
@@ -124,8 +155,8 @@ def main_glfw():
             prev_img = frame_data["img"]
             frame_data["image_texture"], frame_data["image_width"], frame_data["image_height"] = load_image(frame_data["img"])
         
-        if frame_data["done"] and frame_data["predictions"] is not None and frame_data["selected_file"]["texture"] is None:
-            frame_data["selected_file"]["texture"], frame_data["selected_file"]["image_width"], frame_data["selected_file"]["image_height"] = load_image(frame_data["predictions"][frame_data["selected_file"]["idx"]])
+        if frame_data["done"] and frame_data["imgs"] is not None and frame_data["selected_file"]["texture"] is None:
+            frame_data["selected_file"]["texture"], frame_data["selected_file"]["image_width"], frame_data["selected_file"]["image_height"] = load_image(frame_data["imgs"][frame_data["selected_file"]["idx"]])
 
         imgui.new_frame()
         on_frame()
@@ -158,8 +189,12 @@ def load_image(image_name):
 
     return texture, width, height
 
-
+import shutil
 def start_inference(frame_data):
+    try:
+        shutil.rmtree(frame_data["folder_path"] + "/exp/predictions")
+    except:
+        pass
     predictions = detect.run(weights=frame_data["model_path"], imgsz=[1280, 1280], conf_thres=frame_data["threshold_conf"], iou_thres=frame_data["threshold_iou"], save_conf=True,
                 exist_ok=True, save_txt=True, source=frame_data["folder_path"], project=frame_data["folder_path"] + "/exp", name="predictions",)
         
@@ -269,7 +304,7 @@ def on_frame():
             frame_data["is_running"] = True
             frame_data["progress"] = 0
             frame_data["done"] = False
-            frame_data["predictions"] = None
+            frame_data["predictions"] = {}
             # call model
             imgs = glob.glob(frame_data["folder_path"] + "/*.jpg")
             frame_data["num_imgs"] = len(imgs)
@@ -301,19 +336,42 @@ def on_frame():
             imgui.image(frame_data["image_texture"], frame_data["image_width"], frame_data["image_height"])
     
     if frame_data["done"]:
-        if frame_data["predictions"] is None:
-            frame_data["predictions"] = glob.glob(frame_data["folder_path"] + "/exp/predictions/*.jpg")
+        if frame_data["imgs"] is None:
+            frame_data["imgs"] = glob.glob(frame_data["folder_path"] + "/*.jpg") #glob.glob(frame_data["folder_path"] + "/exp/predictions/*.jpg")
+            frame_data["predictions"] = {} # glob.glob(frame_data["folder_path"] + "/exp/predictions/labels/*.txt") #glob.glob(frame_data["folder_path"] + "/exp/predictions/*.jpg")
         
         x_offset = (viewport[0] / 5)
         imgui.begin_child(label="files_list", width=x_offset, height=-1, border=False, )
         
-        for i, p in enumerate(frame_data["predictions"]):
+        for i, p in enumerate(frame_data["imgs"]):
             clicked, _ = imgui.selectable(
                         label=os.path.basename(p), selected=(frame_data["selected_file"]["idx"] == i)
                     )
             if clicked:
                 frame_data["selected_file"]["texture"] = None
                 frame_data["selected_file"]["idx"] = i
+                frame_data["selected_file"]["name"] = os.path.basename(p)
+                if frame_data["predictions"].get(frame_data["selected_file"]["name"]) is None:
+                    frame_data["predictions"][frame_data["selected_file"]["name"]] = []
+                    with open(frame_data["folder_path"] + f"/exp/predictions/labels/{frame_data['selected_file']['name'].rsplit('.')[0]}.txt", "r") as fp:
+                        preds = fp.readlines()
+                    # frame_data["predictions"][frame_data["selected_file"]["name"]]
+                    for pred in preds:
+                        line = pred.strip().split(" ")
+                        coords = list(map(lambda x: float(x), line[1:-1]))
+
+                        real_coords = yolo_to_x0y0(coords, frame_data["selected_file"]["image_width"], frame_data["selected_file"]["image_height"], frame_data["selected_file"]["image_width"], frame_data["selected_file"]["image_height"])
+                        frame_data["predictions"][frame_data["selected_file"]["name"]]\
+                            .append({
+                                "x_min": real_coords[0],
+                                "y_min": real_coords[1],
+                                "x_max": real_coords[2],
+                                "y_max": real_coords[3],
+                                "width": real_coords[2] - real_coords[0],
+                                "height": real_coords[3] - real_coords[1],
+                                "label": "block"
+                            })
+
         imgui.end_child()
         imgui.same_line()
         imgui.begin_child(label="img_preview", width=-1, height=-1, border=False,)
@@ -329,7 +387,8 @@ def on_frame():
             labeling["curr_bbox"]["width"] = labeling["curr_bbox"]["x_max"] - labeling["curr_bbox"]["x_min"]
             labeling["curr_bbox"]["height"] = labeling["curr_bbox"]["y_max"] - labeling["curr_bbox"]["y_min"]
 
-            labeling["bboxes"].append(deepcopy(labeling["curr_bbox"]))
+            frame_data["predictions"][frame_data["selected_file"]["name"]]\
+                            .append(deepcopy(labeling["curr_bbox"]))
             if labeling["curr_bbox"] is not None:
                 labeling["curr_bbox"] = None
         elif imgui.is_mouse_down() and labeling["new_box_requested"]:
@@ -354,37 +413,39 @@ def on_frame():
         else:
             # labeling["curr_box"] = None
             found = []
-            for bbox in labeling["bboxes"]:
-                
-                draw_list.add_rect(
-                    bbox["x_min"] + x_offset, 
-                    bbox["y_min"] - imgui.get_scroll_y() +  frame_data["y_offset"], 
-                    bbox["x_max"] + x_offset, 
-                    bbox["y_max"] - imgui.get_scroll_y() +  frame_data["y_offset"], 
-                    imgui.get_color_u32_rgba(1,0,0,1),
-                    thickness=2
-                )
+            if frame_data["predictions"].get(frame_data["selected_file"]["name"]) is not None:
 
-                if imgui.get_mouse_pos()[0] >= bbox["x_min"] + x_offset  and\
-                    imgui.get_mouse_pos()[0] <= bbox["x_max"] + x_offset  and\
-                    imgui.get_mouse_pos()[1] >= bbox["y_min"] - imgui.get_scroll_y() +  frame_data["y_offset"]  and\
-                    imgui.get_mouse_pos()[1] <=  bbox["y_max"] - imgui.get_scroll_y() +  frame_data["y_offset"] :
+                for bbox in frame_data["predictions"][frame_data["selected_file"]["name"]]:
                     
-                    if frame_data["prev_cursor"] != glfw.HAND_CURSOR:
-                        glfw.set_cursor(frame_data["glfw"]["window"], glfw.create_standard_cursor(glfw.HAND_CURSOR))
-                        frame_data["prev_cursor"] = glfw.HAND_CURSOR
-                        #print("created")
-                    found.append(bbox)
-                    """ if labeling["curr_bbox"] is None:
-                        labeling["curr_bbox"] = bbox """
-            ordered_found = sorted(found, key=lambda x: abs(imgui.get_mouse_pos()[0] - x["x_min"]))
+                    draw_list.add_rect(
+                        bbox["x_min"] + x_offset, 
+                        bbox["y_min"] - imgui.get_scroll_y() +  frame_data["y_offset"], 
+                        bbox["x_max"] + x_offset, 
+                        bbox["y_max"] - imgui.get_scroll_y() +  frame_data["y_offset"], 
+                        imgui.get_color_u32_rgba(1,0,0,1),
+                        thickness=2
+                    )
 
-            if len(ordered_found) > 0 and labeling["curr_bbox"] is None:
-                labeling["curr_bbox"] = ordered_found[0]
-            if frame_data["prev_cursor"] != glfw.ARROW_CURSOR and found == [] and not imgui.is_mouse_down(1):
-                frame_data["prev_cursor"] = glfw.ARROW_CURSOR
-                glfw.set_cursor(frame_data["glfw"]["window"], glfw.create_standard_cursor(glfw.ARROW_CURSOR))
-                #print("normal")
+                    if imgui.get_mouse_pos()[0] >= bbox["x_min"] + x_offset  and\
+                        imgui.get_mouse_pos()[0] <= bbox["x_max"] + x_offset  and\
+                        imgui.get_mouse_pos()[1] >= bbox["y_min"] - imgui.get_scroll_y() +  frame_data["y_offset"]  and\
+                        imgui.get_mouse_pos()[1] <=  bbox["y_max"] - imgui.get_scroll_y() +  frame_data["y_offset"] :
+                        
+                        if frame_data["prev_cursor"] != glfw.HAND_CURSOR:
+                            glfw.set_cursor(frame_data["glfw"]["window"], glfw.create_standard_cursor(glfw.HAND_CURSOR))
+                            frame_data["prev_cursor"] = glfw.HAND_CURSOR
+                            #print("created")
+                        found.append(bbox)
+                        """ if labeling["curr_bbox"] is None:
+                            labeling["curr_bbox"] = bbox """
+                ordered_found = sorted(found, key=lambda x: abs(imgui.get_mouse_pos()[0] - x["x_min"]))
+
+                if len(ordered_found) > 0 and labeling["curr_bbox"] is None:
+                    labeling["curr_bbox"] = ordered_found[0]
+                if frame_data["prev_cursor"] != glfw.ARROW_CURSOR and found == [] and not imgui.is_mouse_down(1):
+                    frame_data["prev_cursor"] = glfw.ARROW_CURSOR
+                    glfw.set_cursor(frame_data["glfw"]["window"], glfw.create_standard_cursor(glfw.ARROW_CURSOR))
+                    #print("normal")
             
             if imgui.is_mouse_down() and labeling["curr_bbox"] is not None:
 
