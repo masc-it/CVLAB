@@ -355,7 +355,6 @@ def on_frame():
                     frame_data["predictions"][frame_data["selected_file"]["name"]] = []
                     with open(frame_data["folder_path"] + f"/exp/predictions/labels/{frame_data['selected_file']['name'].rsplit('.')[0]}.txt", "r") as fp:
                         preds = fp.readlines()
-                    # frame_data["predictions"][frame_data["selected_file"]["name"]]
                     for pred in preds:
                         line = pred.strip().split(" ")
                         coords = list(map(lambda x: float(x), line[1:-1]))
@@ -381,7 +380,7 @@ def on_frame():
         
         draw_list = imgui.get_window_draw_list()
         
-        if not imgui.is_mouse_down() and labeling["was_mouse_down"]: # and add_new_bbox
+        if not imgui.is_mouse_down() and labeling["was_mouse_down"]:
             labeling["was_mouse_down"] = False
             labeling["new_box_requested"] = False
             labeling["curr_bbox"]["width"] = labeling["curr_bbox"]["x_max"] - labeling["curr_bbox"]["x_min"]
@@ -409,9 +408,8 @@ def on_frame():
                 labeling["curr_bbox"]["y_min"] - imgui.get_scroll_y() +  frame_data["y_offset"], 
                 labeling["curr_bbox"]["x_max"] + x_offset, 
                 labeling["curr_bbox"]["y_max"] - imgui.get_scroll_y() +  frame_data["y_offset"], 
-                imgui.get_color_u32_rgba(1,0,0,1), thickness=2)
+                imgui.get_color_u32_rgba(1,0,0,1), thickness=1)
         else:
-            # labeling["curr_box"] = None
             found = []
             if frame_data["predictions"].get(frame_data["selected_file"]["name"]) is not None:
 
@@ -423,7 +421,7 @@ def on_frame():
                         bbox["x_max"] + x_offset, 
                         bbox["y_max"] - imgui.get_scroll_y() +  frame_data["y_offset"], 
                         imgui.get_color_u32_rgba(1,0,0,1),
-                        thickness=2
+                        thickness=1
                     )
 
                     if imgui.get_mouse_pos()[0] >= bbox["x_min"] + x_offset  and\
@@ -436,8 +434,8 @@ def on_frame():
                             frame_data["prev_cursor"] = glfw.HAND_CURSOR
                             #print("created")
                         found.append(bbox)
-                        """ if labeling["curr_bbox"] is None:
-                            labeling["curr_bbox"] = bbox """
+                        
+                # take the closest window. Needed for nested bboxes.
                 ordered_found = sorted(found, key=lambda x: abs(imgui.get_mouse_pos()[0] - x["x_min"]))
 
                 if len(ordered_found) > 0 and labeling["curr_bbox"] is None:
