@@ -163,10 +163,10 @@ def load_image(image_name):
 
 import shutil
 def start_inference(frame_data):
-    try:
+    """ try:
         shutil.rmtree(frame_data["folder_path"] + "/exp/predictions")
     except:
-        pass
+        pass """
     predictions = detect.run(weights=frame_data["model_path"], imgsz=[1280, 1280], conf_thres=frame_data["threshold_conf"], iou_thres=frame_data["threshold_iou"], save_conf=True,
                 exist_ok=True, save_txt=True, source=frame_data["folder_path"], project=frame_data["folder_path"] + "/exp", name="predictions",)
         
