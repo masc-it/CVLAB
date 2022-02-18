@@ -2,9 +2,6 @@
 # -*- coding: utf-8 -*-
 
 import time
-import sys
-from pathlib import Path
-
 import os
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 import pygame
@@ -22,6 +19,8 @@ import threading
 import glob
 import ctypes
 from copy import deepcopy
+from custom_utils import yolo_to_x0y0, voc_to_yolo
+
 myappid = 'mascit.app.yololab' # arbitrary string
 ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
@@ -34,7 +33,7 @@ frame_data = {
     "is_running": False,
     "img": "",
     "image_texture" : None,
-    "done": False,
+    "done": True,
     "predictions" : None,
     "imgs" : None,
     "selected_file" : {
@@ -68,34 +67,7 @@ frame_data = {
     "threshold_iou" : 0.45
 }
 
-def yolo_to_x0y0(yolo_pred, input_w, input_h, target_w, target_h):
 
-    # yolo_x = (x+(w/2))/img_w
-    # x_c = (yolo_x) * img_w - (w/2)
-
-    # yolo_width = w/img_w
-    # w = yolo_width * img_w
-
-    # target_size / input_size
-    x_scale = target_w / input_w
-    y_scale = target_h / input_h
-
-    # convert from yolo [x_c, y_c, w_norm, h_norm] to [x0,y0,x1,y1]
-    bbox_w = yolo_pred[2] * input_w
-    bbox_h = yolo_pred[3] * input_h
-    x0_orig = yolo_pred[0] * input_w - (bbox_w/2)
-    y0_orig = yolo_pred[1] * input_h - (bbox_h/2)
-
-    x1_orig = x0_orig + bbox_w
-    y1_orig = y0_orig + bbox_h
-
-    # scale accoring to target_size
-    x = int(x0_orig * x_scale)
-    y = int(y0_orig * y_scale)
-    xmax = int(x1_orig * x_scale)
-    ymax = int(y1_orig * y_scale)
-
-    return [x, y, xmax, ymax]
 
 def fb_to_window_factor(window):
     win_w, win_h = glfw.get_window_size(window)
@@ -320,6 +292,18 @@ def on_frame():
     if annotate_click:
         labeling["new_box_requested"] = not labeling["new_box_requested"]
 
+    imgui.same_line()
+    save_click = imgui.button("Save")
+
+    if save_click:
+        if frame_data["predictions"] is not None:
+            os.makedirs(frame_data["folder_path"] + "/pseudo/", exist_ok=True)
+            for file in frame_data["predictions"]:
+                
+                with open(frame_data["folder_path"] + f"/exp/predictions/labels/{file.rsplit('.')[0]}.txt", "w") as fp:
+                    for bbox in frame_data["predictions"][file]:
+                        yolo_coords = voc_to_yolo((frame_data["selected_file"]["image_width"], frame_data["selected_file"]["image_height"]), [bbox["x_min"], bbox["y_min"], bbox["x_max"], bbox["y_max"]])
+                        fp.write("0 " + " ".join(["%.6f" % a for a in yolo_coords]) + ' 1\n')
     if frame_data["is_running"]:
         
         imgui.columns(3,"progr", False)
