@@ -118,7 +118,7 @@ def main_glfw():
     impl.refresh_font_texture()
     
     frame_data["io"] = imgui.get_io()
-    # frame_data["image_texture"], frame_data["image_width"], frame_data["image_height"] = load_image()
+
     prev_img = ""
     while not glfw.window_should_close(window):
         glfw.poll_events()
@@ -289,7 +289,7 @@ def on_frame():
     imgui.same_line()
     annotate_click = imgui.button("New box" if not labeling["new_box_requested"] else "Cancel")        
 
-    if annotate_click:
+    if annotate_click or imgui.is_key_pressed(glfw.KEY_N):
         labeling["new_box_requested"] = not labeling["new_box_requested"]
 
     imgui.same_line()
@@ -443,6 +443,12 @@ def on_frame():
                 labeling["curr_bbox"]["width"] = abs(labeling["curr_bbox"]["x_max"] - labeling["curr_bbox"]["x_min"])
                 labeling["curr_bbox"]["height"] = abs(labeling["curr_bbox"]["y_max"] - labeling["curr_bbox"]["y_min"])
             
+            if imgui.is_key_pressed(glfw.KEY_BACKSPACE) and labeling["curr_bbox"] is not None:
+                print("backspace")
+                frame_data["predictions"].get(frame_data["selected_file"]["name"])\
+                    .remove(labeling["curr_bbox"])
+                labeling["curr_bbox"] = None
+
             if not imgui.is_mouse_down(0) and not imgui.is_mouse_down(1):
                 labeling["curr_bbox"] = None
         imgui.end_child()
