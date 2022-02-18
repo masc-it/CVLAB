@@ -56,8 +56,12 @@ frame_data = {
                     "height": 200,
                     "label": "block"
                 }],
-        "was_mouse_down": False
+        "was_mouse_down": False,
+        "was_dragging": False,
+        "x_offset": 0,
+        "y_offset": 0
     },
+    
     "prev_cursor": glfw.ARROW_CURSOR,
     "y_offset": 146,
     "progress": 0,
@@ -431,11 +435,24 @@ def on_frame():
             
             if imgui.is_mouse_down() and labeling["curr_bbox"] is not None:
 
-                labeling["curr_bbox"]["x_min"] = frame_data["io"].mouse_pos[0] - x_offset - labeling["curr_bbox"]["width"]/2
-                labeling["curr_bbox"]["y_min"] = frame_data["io"].mouse_pos[1] + imgui.get_scroll_y() - frame_data["y_offset"] - labeling["curr_bbox"]["height"]/2
+                mouse_pos_x = frame_data["io"].mouse_pos[0]
+                mouse_pos_y = frame_data["io"].mouse_pos[1]
+                if not labeling["was_drawing"]:
+                    labeling["was_drawing"] = True
+                    # save relative mouse offset
+                    labeling["x_offset"] = labeling["curr_bbox"]["width"] - ( labeling["curr_bbox"]["x_max"]+ x_offset - mouse_pos_x  )  
+                    labeling["y_offset"] = labeling["curr_bbox"]["height"] - (labeling["curr_bbox"]["y_max"] - mouse_pos_y + frame_data["y_offset"]) 
+
+                mouse_pos_x -= labeling["x_offset"]
+                mouse_pos_y -= labeling["y_offset"]
+
+                labeling["curr_bbox"]["x_min"] = mouse_pos_x - x_offset # - labeling["curr_bbox"]["width"]/2 # frame_data["io"].mouse_pos[0] ) - labeling["curr_bbox"]["x_min"] ) #  
+                labeling["curr_bbox"]["y_min"] = mouse_pos_y + imgui.get_scroll_y() - frame_data["y_offset"]  #frame_data["io"].mouse_pos[1] + imgui.get_scroll_y() - frame_data["y_offset"] - labeling["curr_bbox"]["height"]/2 # -(labeling["curr_bbox"]["y_max"] - frame_data["io"].mouse_pos[1] )  #
                 labeling["curr_bbox"]["x_max"] = labeling["curr_bbox"]["x_min"] + labeling["curr_bbox"]["width"]
                 labeling["curr_bbox"]["y_max"] = labeling["curr_bbox"]["y_min"] + labeling["curr_bbox"]["height"]
-            
+            else:
+                labeling["was_drawing"] = False
+
             if imgui.is_mouse_down(1) and labeling["curr_bbox"] is not None:
 
                 labeling["curr_bbox"]["x_max"] = frame_data["io"].mouse_pos[0] - x_offset
