@@ -32,18 +32,26 @@ frame_data = {
         "0": {
             "index": "0",
             "label": "Title",
-            "rgb" : [235/255, 64/255, 52/255]
+            "rgb" : [235/255, 64/255, 52/255],
+            "shortcut": "1"
         },
         "1": {
             "index": "1",
             "label": "Paragraph",
-            "rgb" : [173/255, 90/255, 73/255]
+            "rgb" : [173/255, 90/255, 73/255],
+            "shortcut": "2"
         },
         "2": {
             "index": "2",
             "label": "List",
-            "rgb" : [58/255, 235/255, 52/255]
+            "rgb" : [58/255, 235/255, 52/255],
+            "shortcut": "3"
         }
+    },
+    "labels_shortcut": {
+        "1": "0",
+        "2": "1",
+        "3": "2"
     },
     "prev_cursor": 221185, # glfw.ARROW_CURSOR
     "y_offset": 146,

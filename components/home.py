@@ -131,15 +131,16 @@ def header():
 
 def _open_labels_popup(labels):
     
-    imgui.set_next_window_size(500, 350)
+    imgui.set_next_window_size(700, 350)
     if imgui.begin_popup_modal("Labels", flags=imgui.WINDOW_NO_RESIZE )[0]:
         
         imgui.begin_child(label="labels_table", height=250, border=False, )
-        imgui.begin_table("labels_t", 3, inner_width=500, flags=imgui.TABLE_SIZING_FIXED_FIT|imgui.TABLE_RESIZABLE)
+        imgui.begin_table("labels_t", 4, inner_width=700, flags=imgui.TABLE_SIZING_FIXED_FIT|imgui.TABLE_RESIZABLE)
 
         imgui.table_setup_column("INDEX",init_width_or_weight=100, )
-        imgui.table_setup_column("LABEL",init_width_or_weight=300)
-        imgui.table_setup_column("COLOR",init_width_or_weight=100)
+        imgui.table_setup_column("LABEL",init_width_or_weight=350)
+        imgui.table_setup_column("COLOR",init_width_or_weight=50)
+        imgui.table_setup_column("SHORTCUT",init_width_or_weight=100)
 
         imgui.table_headers_row()
         
@@ -150,17 +151,29 @@ def _open_labels_popup(labels):
             imgui.text(str(label))
             imgui.table_set_column_index(1)
             imgui.push_item_width(-1)
-            _,label_obj["label"]= imgui.input_text(label="", value=label_obj["label"], buffer_length=128)
+            _,label_obj["label"]= imgui.input_text(label=f"lab_{label}", value=label_obj["label"], buffer_length=128)
             imgui.pop_item_width()
             imgui.table_set_column_index(2)
             
-            col_changed, label_obj["rgb"] = imgui.color_edit3(
+            _, label_obj["rgb"] = imgui.color_edit3(
                     f"edit_{label}", *label_obj["rgb"], flags=
                         imgui.COLOR_EDIT_NO_LABEL|imgui.COLOR_EDIT_NO_INPUTS|imgui.COLOR_EDIT_INPUT_RGB
                 )
-            
-            if col_changed:
-                print( label_obj["rgb"])
+            imgui.table_set_column_index(3)
+            imgui.push_item_width(-1)
+            short_changed, shortcut= imgui.input_text(label=f"shortcut_{label}", value=label_obj["shortcut"], buffer_length=2)
+            if short_changed:
+                try:
+                    int(shortcut)
+                    if frame_data["labels_shortcut"].get(shortcut) is None:
+                        del frame_data["labels_shortcut"][label_obj["shortcut"]]
+                        label_obj["shortcut"] = shortcut
+                        frame_data["labels_shortcut"][shortcut] = label
+                except:
+                    pass
+                
+            imgui.pop_item_width()
+             
         imgui.end_table()
         imgui.end_child()
 
@@ -348,6 +361,12 @@ def _annotation_screen():
             frame_data["predictions"].get(frame_data["selected_file"]["name"])\
                 .remove(labeling["curr_bbox"])
             labeling["curr_bbox"] = None
+
+        for i in frame_data["labels_shortcut"]:
+            if imgui.is_key_pressed(int(i)+glfw.KEY_0) and labeling["curr_bbox"] is not None:
+                print(frame_data["labels_shortcut"])
+                labeling["curr_bbox"]["label"] = frame_data["labels_shortcut"][i]
+                break
 
         if not imgui.is_mouse_down(0) and not imgui.is_mouse_down(1):
             labeling["curr_bbox"] = None
