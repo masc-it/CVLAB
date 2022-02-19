@@ -17,6 +17,7 @@ frame_data = {
         "image_height": None
     },
     "labeling": {
+        "selected_label": "0",
         "new_box_requested": False,
         "curr_bbox": None,
         

@@ -334,7 +334,7 @@ def _annotation_screen():
             labeling["curr_bbox"] = {
                 "x_min": frame_data["io"].mouse_pos[0] - frame_data["x_offset"] ,
                 "y_min": frame_data["io"].mouse_pos[1] + imgui.get_scroll_y() - frame_data["y_offset"],
-                "label": "0",
+                "label": frame_data["labeling"]["selected_label"],
                 "conf": 1.0
             }
         labeling["curr_bbox"]["x_max"] = frame_data["io"].mouse_pos[0] - frame_data["x_offset"]
@@ -363,8 +363,11 @@ def _annotation_screen():
             labeling["curr_bbox"] = None
 
         for i in frame_data["labels_shortcut"]:
-            if imgui.is_key_pressed(int(i)+glfw.KEY_0) and labeling["curr_bbox"] is not None:
-                labeling["curr_bbox"]["label"] = frame_data["labels_shortcut"][i]
+            if imgui.is_key_pressed(int(i)+glfw.KEY_0) :
+                frame_data["labeling"]["selected_label"] = frame_data["labels_shortcut"][i]
+                if labeling["curr_bbox"] is not None:
+                    labeling["curr_bbox"]["label"] = frame_data["labels_shortcut"][i]
+
                 break
 
         if not imgui.is_mouse_down(0) and not imgui.is_mouse_down(1):
