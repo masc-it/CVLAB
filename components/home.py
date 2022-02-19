@@ -120,7 +120,7 @@ def header():
                 with open(frame_data["folder_path"] + f"/exp/predictions/labels/{file.rsplit('.')[0]}.txt", "w") as fp:
                     for bbox in frame_data["predictions"][file]:
                         yolo_coords = custom_utils.voc_to_yolo((frame_data["imgs_info"][file][0], frame_data["imgs_info"][file][1]), [bbox["x_min"], bbox["y_min"], bbox["x_max"], bbox["y_max"]])
-                        fp.write("0 " + " ".join([str(a) for a in yolo_coords]) + ' 1\n')
+                        fp.write(f'{bbox["label"]} ' + " ".join([str(a) for a in yolo_coords]) + f' {bbox["conf"]}\n')
 
 def inference_progress():
     global frame_data
@@ -172,11 +172,11 @@ def _files_list():
                     img_size = frame_data["imgs_info"][base_p] 
                 frame_data["predictions"][frame_data["selected_file"]["name"]]\
                      = custom_utils.load_yolo_predictions(
-                         frame_data["folder_path"] + f"/exp/predictions/labels/{frame_data['selected_file']['name'].rsplit('.')[0]}.txt",
-                         img_size[0], 
-                         img_size[1]
-
-                     )
+                                    frame_data["folder_path"] + f"/exp/predictions/labels/{frame_data['selected_file']['name'].rsplit('.')[0]}.txt",
+                                    img_size[0], 
+                                    img_size[1]
+                                )
+                     
 
     imgui.end_child()
     imgui.same_line()
@@ -275,7 +275,8 @@ def _annotation_screen():
             labeling["curr_bbox"] = {
                 "x_min": frame_data["io"].mouse_pos[0] - frame_data["x_offset"] ,
                 "y_min": frame_data["io"].mouse_pos[1] + imgui.get_scroll_y() - frame_data["y_offset"],
-                "label": "block"
+                "label": 0,
+                "conf": 1.0
             }
         labeling["curr_bbox"]["x_max"] = frame_data["io"].mouse_pos[0] - frame_data["x_offset"]
         labeling["curr_bbox"]["y_max"] = frame_data["io"].mouse_pos[1] + imgui.get_scroll_y() - frame_data["y_offset"]

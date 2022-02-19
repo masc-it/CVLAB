@@ -106,7 +106,8 @@ def load_yolo_predictions(path, image_width, image_height):
             "y_max": real_coords[3],
             "width": real_coords[2] - real_coords[0],
             "height": real_coords[3] - real_coords[1],
-            "label": "block"
+            "label": line[0],
+            "conf": line[-1]
         })
     return coords
 
