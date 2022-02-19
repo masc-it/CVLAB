@@ -1,6 +1,7 @@
 import glfw
 import pygame
 import OpenGL.GL as gl
+from PIL import Image
 
 def yolo_to_x0y0(yolo_pred, input_w, input_h, target_w, target_h):
 
@@ -51,7 +52,7 @@ def fb_to_window_factor(window):
 
     return max(float(fb_w) / win_w, float(fb_h) / win_h)
 
-def load_image(image_name):
+def load_image_from_file(image_name):
     image = pygame.image.load(image_name)
     textureSurface = pygame.transform.flip(image, False, True)
 
@@ -68,6 +69,25 @@ def load_image(image_name):
                     gl.GL_UNSIGNED_BYTE, textureData)
 
     return texture, width, height
+
+def _load_image_texture(img_id, image_name, imgs_to_render):
+    
+    texture, width, height = load_image_from_file(image_name)
+    
+    imgs_to_render[img_id]["name"] = image_name
+    imgs_to_render[img_id]["texture"] = texture
+    imgs_to_render[img_id]["width"] = width
+    imgs_to_render[img_id]["height"] = height
+
+
+def load_images(imgs_to_render):
+
+    for key in imgs_to_render:
+        img_obj = imgs_to_render[key]
+        if img_obj["name"] != "" and (img_obj["texture"] is None or img_obj["prev_name"] != img_obj["name"]):
+            _load_image_texture(key, img_obj["name"], imgs_to_render)
+            img_obj["prev_name"] = img_obj["name"]
+
 
 def load_yolo_predictions(path, image_width, image_height):
 
@@ -89,3 +109,8 @@ def load_yolo_predictions(path, image_width, image_height):
             "label": "block"
         })
     return coords
+
+def get_image_size(img_path):
+
+    img = Image.open(img_path)
+    return img.size
