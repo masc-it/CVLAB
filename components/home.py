@@ -364,7 +364,6 @@ def _annotation_screen():
 
         for i in frame_data["labels_shortcut"]:
             if imgui.is_key_pressed(int(i)+glfw.KEY_0) and labeling["curr_bbox"] is not None:
-                print(frame_data["labels_shortcut"])
                 labeling["curr_bbox"]["label"] = frame_data["labels_shortcut"][i]
                 break
 
