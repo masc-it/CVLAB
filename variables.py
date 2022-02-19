@@ -28,6 +28,23 @@ frame_data = {
     
     "imgs_to_render": {},
     "imgs_info" : {},
+    "labels": {
+        "0": {
+            "index": "0",
+            "label": "Title",
+            "rgb" : [235/255, 64/255, 52/255]
+        },
+        "1": {
+            "index": "1",
+            "label": "Paragraph",
+            "rgb" : [173/255, 90/255, 73/255]
+        },
+        "2": {
+            "index": "2",
+            "label": "List",
+            "rgb" : [58/255, 235/255, 52/255]
+        }
+    },
     "prev_cursor": 221185, # glfw.ARROW_CURSOR
     "y_offset": 146,
     "progress": 0,

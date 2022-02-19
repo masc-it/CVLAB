@@ -122,6 +122,52 @@ def header():
                         yolo_coords = custom_utils.voc_to_yolo((frame_data["imgs_info"][file][0], frame_data["imgs_info"][file][1]), [bbox["x_min"], bbox["y_min"], bbox["x_max"], bbox["y_max"]])
                         fp.write(f'{bbox["label"]} ' + " ".join([str(a) for a in yolo_coords]) + f' {bbox["conf"]}\n')
 
+    imgui.same_line()
+    labels_click = imgui.button("Labels")
+
+    if labels_click:
+        imgui.open_popup("Labels")
+    _open_labels_popup(frame_data["labels"])
+
+def _open_labels_popup(labels):
+    
+    imgui.set_next_window_size(500, 350)
+    if imgui.begin_popup_modal("Labels", flags=imgui.WINDOW_NO_RESIZE )[0]:
+        
+        imgui.begin_child(label="labels_table", height=250, border=False, )
+        imgui.begin_table("labels_t", 3, inner_width=500, flags=imgui.TABLE_SIZING_FIXED_FIT|imgui.TABLE_RESIZABLE)
+
+        imgui.table_setup_column("INDEX",init_width_or_weight=100, )
+        imgui.table_setup_column("LABEL",init_width_or_weight=300)
+        imgui.table_setup_column("COLOR",init_width_or_weight=100)
+
+        imgui.table_headers_row()
+        
+        for label in labels:
+            label_obj = labels[label]
+            imgui.table_next_row()
+            imgui.table_set_column_index(0)
+            imgui.text(str(label))
+            imgui.table_set_column_index(1)
+            imgui.push_item_width(-1)
+            _,label_obj["label"]= imgui.input_text(label="", value=label_obj["label"], buffer_length=128)
+            imgui.pop_item_width()
+            imgui.table_set_column_index(2)
+            
+            col_changed, label_obj["rgb"] = imgui.color_edit3(
+                    f"edit_{label}", *label_obj["rgb"], flags=
+                        imgui.COLOR_EDIT_NO_LABEL|imgui.COLOR_EDIT_NO_INPUTS|imgui.COLOR_EDIT_INPUT_RGB
+                )
+            
+            if col_changed:
+                print( label_obj["rgb"])
+        imgui.end_table()
+        imgui.end_child()
+
+        if imgui.button("Close"):
+            imgui.close_current_popup()
+        imgui.end_popup()
+
 def inference_progress():
     global frame_data
     img_data = frame_data["imgs_to_render"]["inference_preview"]
@@ -220,7 +266,7 @@ def _update_selected_bbox(frame_data, labeling, draw_list):
             bbox["y_min"] - imgui.get_scroll_y() +  frame_data["y_offset"], 
             bbox["x_max"] + frame_data["x_offset"], 
             bbox["y_max"] - imgui.get_scroll_y() +  frame_data["y_offset"], 
-            imgui.get_color_u32_rgba(1,0,0,1),
+            imgui.get_color_u32_rgba(*frame_data["labels"][bbox["label"]]["rgb"], 255),
             thickness=1
         )
 
@@ -275,7 +321,7 @@ def _annotation_screen():
             labeling["curr_bbox"] = {
                 "x_min": frame_data["io"].mouse_pos[0] - frame_data["x_offset"] ,
                 "y_min": frame_data["io"].mouse_pos[1] + imgui.get_scroll_y() - frame_data["y_offset"],
-                "label": 0,
+                "label": "0",
                 "conf": 1.0
             }
         labeling["curr_bbox"]["x_max"] = frame_data["io"].mouse_pos[0] - frame_data["x_offset"]
@@ -286,7 +332,8 @@ def _annotation_screen():
             labeling["curr_bbox"]["y_min"] - imgui.get_scroll_y() +  frame_data["y_offset"], 
             labeling["curr_bbox"]["x_max"] + frame_data["x_offset"], 
             labeling["curr_bbox"]["y_max"] - imgui.get_scroll_y() +  frame_data["y_offset"], 
-            imgui.get_color_u32_rgba(1,0,0,1), thickness=1)
+            imgui.get_color_u32_rgba(*frame_data["labels"][labeling["curr_bbox"]["label"]]["rgb"], 255), 
+            thickness=1)
     
     else: # draw bboxes and handle interaction
         if frame_data["predictions"].get(frame_data["selected_file"]["name"]) is not None:
