@@ -21,15 +21,21 @@ from variables import frame_data
 myappid = 'mascit.app.yololab' # arbitrary string
 ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
-io = None
-image_texture, image_width, image_height = None, None, None
+
+def setup_images():
+    global frame_data
+
+    imgs = ["annotate_preview", "inference_preview"]
+    for i in imgs:
+        frame_data["imgs_to_render"][i] = {
+            "prev_name": "",
+            "name": "",
+            "texture": None
+        }
 
 
 def main_glfw():
-    global image_texture
-    global image_width
-    global image_height
-
+    global frame_data
     def glfw_init():
         width, height = 1024, 900
         window_name = "YoloV5 GUI"
@@ -69,17 +75,14 @@ def main_glfw():
     
     frame_data["io"] = imgui.get_io()
 
-    prev_img = ""
+    setup_images()
+    
     while not glfw.window_should_close(window):
         glfw.poll_events()
         impl.process_inputs()
-        if frame_data["is_running"] and frame_data["img"] != "" and frame_data["img"] != prev_img:
-            prev_img = frame_data["img"]
-            frame_data["image_texture"], frame_data["image_width"], frame_data["image_height"] = custom_utils.load_image(frame_data["img"])
-        
-        if frame_data["done"] and frame_data["imgs"] is not None and frame_data["selected_file"]["texture"] is None:
-            frame_data["selected_file"]["texture"], frame_data["selected_file"]["image_width"], frame_data["selected_file"]["image_height"] = custom_utils.load_image(frame_data["imgs"][frame_data["selected_file"]["idx"]])
 
+        custom_utils.load_images(frame_data["imgs_to_render"])
+       
         imgui.new_frame()
         on_frame()
         gl.glClearColor(1., 1., 1., 1)
@@ -98,8 +101,6 @@ def main_glfw():
 
 def on_frame():
     global frame_data
-
-    labeling = frame_data["labeling"]
 
     if imgui.begin_main_menu_bar():
         if imgui.begin_menu("File", True):

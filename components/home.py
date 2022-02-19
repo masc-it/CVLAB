@@ -15,7 +15,8 @@ def start_inference(frame_data):
         
     for _, (_, img)  in enumerate(predictions):
         # print(img)
-        frame_data["img"] = img
+        frame_data["imgs_to_render"]["inference_preview"]["name"] = img
+        # frame_data["img"] = img
         frame_data["progress"] += 0.1
         if not frame_data["is_running"]:
             break
@@ -118,11 +119,12 @@ def header():
                 
                 with open(frame_data["folder_path"] + f"/exp/predictions/labels/{file.rsplit('.')[0]}.txt", "w") as fp:
                     for bbox in frame_data["predictions"][file]:
-                        yolo_coords = custom_utils.voc_to_yolo((frame_data["selected_file"]["image_width"], frame_data["selected_file"]["image_height"]), [bbox["x_min"], bbox["y_min"], bbox["x_max"], bbox["y_max"]])
+                        yolo_coords = custom_utils.voc_to_yolo((frame_data["imgs_info"][file][0], frame_data["imgs_info"][file][1]), [bbox["x_min"], bbox["y_min"], bbox["x_max"], bbox["y_max"]])
                         fp.write("0 " + " ".join([str(a) for a in yolo_coords]) + ' 1\n')
 
 def inference_progress():
     global frame_data
+    img_data = frame_data["imgs_to_render"]["inference_preview"]
     if frame_data["is_running"]:
         
         imgui.columns(3,"progr", False)
@@ -134,9 +136,9 @@ def inference_progress():
         )
         imgui.columns(1)
         imgui.spacing()
-        if frame_data["image_texture"] is not None:
-            imgui.same_line((frame_data["viewport"][0] / 2) - (frame_data["image_width"] / 2))
-            imgui.image(frame_data["image_texture"], frame_data["image_width"], frame_data["image_height"])
+        if img_data["texture"] is not None:
+            imgui.same_line((frame_data["viewport"][0] / 2) - (img_data["width"] / 2))
+            imgui.image(img_data["texture"], img_data["width"], img_data["height"])
 
 def preview():
     _files_list()
@@ -144,7 +146,7 @@ def preview():
 
 def _files_list():
     global frame_data
-
+    img_data = frame_data["imgs_to_render"]["annotate_preview"]
     if frame_data["imgs"] is None:
         frame_data["imgs"] = glob.glob(frame_data["folder_path"] + "/*.jpg") 
         frame_data["predictions"] = {} 
@@ -158,15 +160,21 @@ def _files_list():
                     label=os.path.basename(p), selected=(frame_data["selected_file"]["idx"] == i)
                 )
         if clicked:
-            frame_data["selected_file"]["texture"] = None
+            base_p = os.path.basename(p)
+            img_data["name"] = p
             frame_data["selected_file"]["idx"] = i
-            frame_data["selected_file"]["name"] = os.path.basename(p)
+            frame_data["selected_file"]["name"] = base_p
             if frame_data["predictions"].get(frame_data["selected_file"]["name"]) is None:
+                if frame_data["imgs_info"].get(base_p) is None:
+                    img_size = custom_utils.get_image_size(p)
+                    frame_data["imgs_info"][base_p] = img_size
+                else:
+                    img_size = frame_data["imgs_info"][base_p] 
                 frame_data["predictions"][frame_data["selected_file"]["name"]]\
                      = custom_utils.load_yolo_predictions(
                          frame_data["folder_path"] + f"/exp/predictions/labels/{frame_data['selected_file']['name'].rsplit('.')[0]}.txt",
-                         frame_data["selected_file"]["image_width"], 
-                         frame_data["selected_file"]["image_height"]
+                         img_size[0], 
+                         img_size[1]
 
                      )
 
@@ -238,10 +246,11 @@ def _update_selected_bbox(frame_data, labeling, draw_list):
 
 def _annotation_screen():
     global frame_data
+    img_data = frame_data["imgs_to_render"]["annotate_preview"]
     labeling = frame_data["labeling"]
     imgui.begin_child(label="img_preview", width=-1, height=-1, border=False,)
-    if frame_data["selected_file"]["texture"] is not None:
-        imgui.image(frame_data["selected_file"]["texture"], frame_data["selected_file"]["image_width"], frame_data["selected_file"]["image_height"])
+    if img_data["texture"] is not None:
+        imgui.image(img_data["texture"], img_data["width"], img_data["height"])
         
     draw_list = imgui.get_window_draw_list()
 

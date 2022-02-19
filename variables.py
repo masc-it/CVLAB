@@ -26,6 +26,8 @@ frame_data = {
         "y_offset": 0
     },
     
+    "imgs_to_render": {},
+    "imgs_info" : {},
     "prev_cursor": 221185, # glfw.ARROW_CURSOR
     "y_offset": 146,
     "progress": 0,
