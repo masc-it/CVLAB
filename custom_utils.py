@@ -87,16 +87,29 @@ def load_image_from_file(image_name, scale=1):
     orig_width = textureSurface.get_width()
     orig_height = textureSurface.get_height()
 
+    print("orig")
+    print(orig_width)
+    print(orig_height)
+
+    print(f"orig ar: {orig_width/orig_height}")
+
     if scale != 1:
-        textureSurface = pygame.transform.smoothscale(textureSurface, [floor(textureSurface.get_width()*scale), floor(textureSurface.get_height()*scale)] )
+        """ w = orig_width * scale
+        w = w * (orig_height/orig_width)
+        h = orig_height """
+        basewidth = int(orig_width * scale)
+        wpercent = (basewidth/float(orig_width))
+        hsize = int((float(orig_height)*float(wpercent)))
+        textureSurface = pygame.transform.smoothscale(textureSurface, [basewidth, hsize] )
     textureData = pygame.image.tostring(textureSurface, "RGB", 1)
 
     width = textureSurface.get_width()
     height = textureSurface.get_height()
 
-    print("loading")
+    print("scaled")
     print(width)
     print(height)
+    print(f"scaled ar: {width/height}")
     texture = gl.glGenTextures(1)
     gl.glBindTexture(gl.GL_TEXTURE_2D, texture)
     gl.glPixelStorei(gl.GL_UNPACK_ALIGNMENT, 1)
@@ -147,7 +160,11 @@ def load_yolo_predictions(path, image_width, image_height, scaled_width, scaled_
         _coords = list(map(lambda x: float(x), line[1:-1]))
 
         real_coords = yolo_to_x0y0(_coords, scaled_width, scaled_height)
-        offset = 0 #if image_width == scaled_width else -2
+
+        offset = 0 
+        """ if scaled_width > image_width:
+            real_coords[0] *= image_width/scaled_width """
+            #offset = -1 * scaled_width/image_width * real_coords[0]
         coords.append({
             "x_min": real_coords[0] + offset,
             "y_min": real_coords[1] + offset,
@@ -159,6 +176,30 @@ def load_yolo_predictions(path, image_width, image_height, scaled_width, scaled_
             "conf": line[-1]
         })
     return coords
+
+
+def import_yolo_predictions(path, scaled_width, scaled_height):
+
+    bboxes = []
+    with open(path, "r") as fp:
+        preds = fp.readlines()
+    for pred in preds:
+        line = pred.strip().split(" ")
+        _coords = list(map(lambda x: float(x), line[1:-1]))
+
+        real_coords = yolo_to_x0y0(_coords, scaled_width, scaled_height)
+
+        bboxes.append({
+            "x_min": real_coords[0] ,
+            "y_min": real_coords[1] ,
+            "x_max": real_coords[2] ,
+            "y_max": real_coords[3] ,
+            "width": real_coords[2] - real_coords[0],
+            "height": real_coords[3] - real_coords[1],
+            "label": line[0],
+            "conf": line[-1]
+        })
+    return bboxes
 
 def get_image_size(img_path):
 

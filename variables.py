@@ -30,6 +30,7 @@ frame_data = {
     "imgs_to_render": {},
     "imgs_info" : {},
     "img_scale": 1.0,
+    "scale_changed": False,
     "labels": {
         "0": {
             "index": "0",

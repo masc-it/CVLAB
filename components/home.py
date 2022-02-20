@@ -7,7 +7,7 @@ import glob, os
 import custom_utils
 import glfw
 from copy import deepcopy
-from math import floor
+
 def start_inference(frame_data):
     
     predictions = detect.run(weights=frame_data["model_path"], imgsz=[1280, 1280], conf_thres=frame_data["threshold_conf"], iou_thres=frame_data["threshold_iou"], save_conf=True,
@@ -133,6 +133,17 @@ def header():
         imgui.open_popup("Labels")
     _open_labels_popup(frame_data["labels"])
 
+    imgui.same_line()
+    scale_changed, frame_data["img_scale"] = imgui.slider_float(
+                label="Zoom",
+                value=frame_data["img_scale"],
+                min_value=0.5,
+                max_value=2.0,
+                format="%.1f",
+            )
+    if scale_changed:
+        frame_data["scale_changed"] = True
+
 def _open_labels_popup(labels):
     
     imgui.set_next_window_size(700, 350)
@@ -222,30 +233,34 @@ def _files_list():
         clicked, _ = imgui.selectable(
                     label=os.path.basename(p), selected=(frame_data["selected_file"]["idx"] == i)
                 )
-        if clicked:
-            base_p = os.path.basename(p)
-            img_data["name"] = p
+        if clicked or frame_data["scale_changed"]:
+            
+            if clicked:
+                frame_data["scale_changed"] = True
+                base_p = os.path.basename(p)
+                img_data["name"] = p
+                
+                frame_data["selected_file"]["idx"] = i
+                frame_data["selected_file"]["name"] = base_p
+            
             img_data["scale"] = frame_data["img_scale"]
-            frame_data["selected_file"]["idx"] = i
-            frame_data["selected_file"]["name"] = base_p
-            if frame_data["predictions"].get(frame_data["selected_file"]["name"]) is None:
-                if frame_data["imgs_info"].get(base_p) is None:
-                    frame_data["imgs_info"][base_p] = {}
+            if frame_data["scale_changed"] or frame_data["predictions"].get(frame_data["selected_file"]["name"]) is None:
+                if frame_data["scale_changed"] or frame_data["imgs_info"].get(frame_data["selected_file"]["name"]) is None:
+                    frame_data["imgs_info"][frame_data["selected_file"]["name"]] = {}
                     img_size = custom_utils.get_image_size(p)
-                    frame_data["imgs_info"][base_p]["orig_size"] = img_size
+                    frame_data["imgs_info"][frame_data["selected_file"]["name"]]["orig_size"] = img_size
                     img_size_scaled = deepcopy(img_size)
-                    img_size_scaled[0] *= frame_data["img_scale"]
-                    img_size_scaled[1] *= frame_data["img_scale"]
-                    img_size_scaled[0] = floor(img_size_scaled[0])
-                    img_size_scaled[1] = floor(img_size_scaled[1])
-                    frame_data["imgs_info"][base_p]["scaled_size"] = img_size_scaled
+                    w = int(img_size_scaled[0] * img_data["scale"])
+                    wpercent = (w/float(img_size_scaled[0]))
+                    h = int((float(img_size_scaled[1])*float(wpercent)))
+                    img_size_scaled[0] = w
+                    img_size_scaled[1] = h
+                    frame_data["imgs_info"][frame_data["selected_file"]["name"]]["scaled_size"] = img_size_scaled
                 else:
-                    img_data = frame_data["imgs_info"][base_p]
+                    img_data = frame_data["imgs_info"][frame_data["selected_file"]["name"]]
                     img_size = img_data["orig_size"]
                     img_size_scaled = img_data["scaled_size"]
                 
-                print(img_size)
-                print(img_size_scaled)
                 frame_data["predictions"][frame_data["selected_file"]["name"]]\
                      = custom_utils.load_yolo_predictions(
                                     frame_data["folder_path"] + f"/exp/predictions/labels/{frame_data['selected_file']['name'].rsplit('.')[0]}.txt",
@@ -254,6 +269,7 @@ def _files_list():
                                     img_size_scaled[0],
                                     img_size_scaled[1]
                                 )
+                frame_data["scale_changed"] = False
                      
 
     imgui.end_child()
