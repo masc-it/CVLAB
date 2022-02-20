@@ -7,12 +7,13 @@ import glob, os
 import custom_utils
 import glfw
 from copy import deepcopy
-
+from math import floor
 def start_inference(frame_data):
     
     predictions = detect.run(weights=frame_data["model_path"], imgsz=[1280, 1280], conf_thres=frame_data["threshold_conf"], iou_thres=frame_data["threshold_iou"], save_conf=True,
                 exist_ok=True, save_txt=True, source=frame_data["folder_path"], project=frame_data["folder_path"] + "/exp", name="predictions",)
-        
+    
+    frame_data["imgs_to_render"]["inference_preview"]["scale"] = 1
     for _, (_, img)  in enumerate(predictions):
         # print(img)
         frame_data["imgs_to_render"]["inference_preview"]["name"] = img
@@ -119,7 +120,10 @@ def header():
                 
                 with open(frame_data["folder_path"] + f"/exp/predictions/labels/{file.rsplit('.')[0]}.txt", "w") as fp:
                     for bbox in frame_data["predictions"][file]:
-                        yolo_coords = custom_utils.voc_to_yolo((frame_data["imgs_info"][file][0], frame_data["imgs_info"][file][1]), [bbox["x_min"], bbox["y_min"], bbox["x_max"], bbox["y_max"]])
+                        yolo_coords = custom_utils.voc_to_yolo(
+                            (frame_data["imgs_info"][file]["scaled_size"][0], frame_data["imgs_info"][file]["scaled_size"][1]),
+                            (frame_data["imgs_info"][file]["orig_size"][0], frame_data["imgs_info"][file]["orig_size"][1]), 
+                            [float(bbox["x_min"]), float(bbox["y_min"]), float(bbox["x_max"]), float(bbox["y_max"])])
                         fp.write(f'{bbox["label"]} ' + " ".join([str(a) for a in yolo_coords]) + f' {bbox["conf"]}\n')
 
     imgui.same_line()
@@ -221,19 +225,34 @@ def _files_list():
         if clicked:
             base_p = os.path.basename(p)
             img_data["name"] = p
+            img_data["scale"] = frame_data["img_scale"]
             frame_data["selected_file"]["idx"] = i
             frame_data["selected_file"]["name"] = base_p
             if frame_data["predictions"].get(frame_data["selected_file"]["name"]) is None:
                 if frame_data["imgs_info"].get(base_p) is None:
+                    frame_data["imgs_info"][base_p] = {}
                     img_size = custom_utils.get_image_size(p)
-                    frame_data["imgs_info"][base_p] = img_size
+                    frame_data["imgs_info"][base_p]["orig_size"] = img_size
+                    img_size_scaled = deepcopy(img_size)
+                    img_size_scaled[0] *= frame_data["img_scale"]
+                    img_size_scaled[1] *= frame_data["img_scale"]
+                    img_size_scaled[0] = floor(img_size_scaled[0])
+                    img_size_scaled[1] = floor(img_size_scaled[1])
+                    frame_data["imgs_info"][base_p]["scaled_size"] = img_size_scaled
                 else:
-                    img_size = frame_data["imgs_info"][base_p] 
+                    img_data = frame_data["imgs_info"][base_p]
+                    img_size = img_data["orig_size"]
+                    img_size_scaled = img_data["scaled_size"]
+                
+                print(img_size)
+                print(img_size_scaled)
                 frame_data["predictions"][frame_data["selected_file"]["name"]]\
                      = custom_utils.load_yolo_predictions(
                                     frame_data["folder_path"] + f"/exp/predictions/labels/{frame_data['selected_file']['name'].rsplit('.')[0]}.txt",
                                     img_size[0], 
-                                    img_size[1]
+                                    img_size[1],
+                                    img_size_scaled[0],
+                                    img_size_scaled[1]
                                 )
                      
 
@@ -309,7 +328,7 @@ def _annotation_screen():
     labeling = frame_data["labeling"]
     imgui.begin_child(label="img_preview", width=-1, height=-1, border=False,)
     if img_data["texture"] is not None:
-        imgui.image(img_data["texture"], img_data["width"], img_data["height"])
+        imgui.image(img_data["texture"], img_data["scaled_width"], img_data["scaled_height"])
         
     draw_list = imgui.get_window_draw_list()
 

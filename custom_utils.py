@@ -2,8 +2,10 @@ import glfw
 import pygame
 import OpenGL.GL as gl
 from PIL import Image
+from math import floor
+from copy import deepcopy
 
-def yolo_to_x0y0(yolo_pred, input_w, input_h, target_w, target_h):
+def yolo_to_x0y0(yolo_pred, input_w, input_h):
 
     # yolo_x = (x+(w/2))/img_w
     # x_c = (yolo_x) * img_w - (w/2)
@@ -12,29 +14,54 @@ def yolo_to_x0y0(yolo_pred, input_w, input_h, target_w, target_h):
     # w = yolo_width * img_w
 
     # target_size / input_size
-    x_scale = target_w / input_w
-    y_scale = target_h / input_h
+    """ x_scale = target_w / input_w
+    y_scale = target_h / input_h """
 
     # convert from yolo [x_c, y_c, w_norm, h_norm] to [x0,y0,x1,y1]
     bbox_w = yolo_pred[2] * input_w
     bbox_h = yolo_pred[3] * input_h
-    x0_orig = yolo_pred[0] * input_w - (bbox_w/2)
-    y0_orig = yolo_pred[1] * input_h - (bbox_h/2)
+    x0_orig = int(yolo_pred[0] * input_w - (bbox_w/2))
+    y0_orig = int(yolo_pred[1] * input_h - (bbox_h/2))
 
-    x1_orig = x0_orig + bbox_w
-    y1_orig = y0_orig + bbox_h
+    x1_orig = int(yolo_pred[0] * input_w + (bbox_w/2))
+    y1_orig = int(yolo_pred[1] * input_h + (bbox_h/2))
+    
 
-    # scale accoring to target_size
+    """  # scale accoring to target_size
     x = x0_orig * x_scale
     y = y0_orig * y_scale
     xmax = x1_orig * x_scale
-    ymax = y1_orig * y_scale
+    ymax = y1_orig * y_scale """
+
+    x = x0_orig
+    y= y0_orig
+    xmax= x1_orig
+    ymax = y1_orig
 
     return [x, y, xmax, ymax]
 
-def voc_to_yolo(size, box):
-    dw = 1./(size[0])
-    dh = 1./(size[1])
+# bbox = (xmin, xmax, ymin, ymax)
+# in_size = [w, h]
+def resize_bbox(bbox, in_size, out_size):
+    bboxx = deepcopy(bbox)
+    x_scale = float(out_size[0]) / in_size[0]
+    y_scale = float(out_size[1]) / in_size[1]
+
+    # xmin, ymin
+    bboxx[0] = x_scale * bboxx[0]
+    bboxx[2] = y_scale * bbox[2]
+
+    # xmax, ymax
+    bboxx[1] = x_scale * bboxx[1]
+    bboxx[3] = y_scale * bboxx[3]
+
+    return bboxx
+
+def voc_to_yolo(in_size, out_size, box):
+
+    box = resize_bbox(box, in_size, out_size)
+    dw = 1./(out_size[0])
+    dh = 1./(out_size[1])
     x = (box[0] + box[2])/2.0
     y = (box[1] + box[3])/2.0
     w = box[2] - box[0]
@@ -52,44 +79,65 @@ def fb_to_window_factor(window):
 
     return max(float(fb_w) / win_w, float(fb_h) / win_h)
 
-def load_image_from_file(image_name):
+def load_image_from_file(image_name, scale=1):
     image = pygame.image.load(image_name)
-    textureSurface = pygame.transform.flip(image, False, True)
 
+    textureSurface = pygame.transform.flip(image, False, True)
+    
+    orig_width = textureSurface.get_width()
+    orig_height = textureSurface.get_height()
+
+    if scale != 1:
+        textureSurface = pygame.transform.smoothscale(textureSurface, [floor(textureSurface.get_width()*scale), floor(textureSurface.get_height()*scale)] )
     textureData = pygame.image.tostring(textureSurface, "RGB", 1)
 
     width = textureSurface.get_width()
     height = textureSurface.get_height()
 
+    print("loading")
+    print(width)
+    print(height)
     texture = gl.glGenTextures(1)
     gl.glBindTexture(gl.GL_TEXTURE_2D, texture)
-    gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
+    gl.glPixelStorei(gl.GL_UNPACK_ALIGNMENT, 1)
     gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER, gl.GL_LINEAR)
+    gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
+
     gl.glTexImage2D(gl.GL_TEXTURE_2D, 0, gl.GL_RGB, width, height, 0, gl.GL_RGB,
                     gl.GL_UNSIGNED_BYTE, textureData)
 
-    return texture, width, height
+    return {
+        "texture": texture, 
+        "scaled_width": width, 
+        "scaled_height": height, 
+        "orig_width": orig_width,
+        "orig_height": orig_height
+    }
 
 def _load_image_texture(img_id, image_name, imgs_to_render):
     
-    texture, width, height = load_image_from_file(image_name)
+    img_data = load_image_from_file(image_name, imgs_to_render[img_id]["scale"])
     
     imgs_to_render[img_id]["name"] = image_name
-    imgs_to_render[img_id]["texture"] = texture
-    imgs_to_render[img_id]["width"] = width
-    imgs_to_render[img_id]["height"] = height
+    imgs_to_render[img_id]["texture"] = img_data["texture"]
+    imgs_to_render[img_id]["width"] = img_data["orig_width"]
+    imgs_to_render[img_id]["height"] = img_data["orig_height"]
+    imgs_to_render[img_id]["scaled_width"] = img_data["scaled_width"]
+    imgs_to_render[img_id]["scaled_height"] = img_data["scaled_height"]
 
 
 def load_images(imgs_to_render):
 
     for key in imgs_to_render:
         img_obj = imgs_to_render[key]
-        if img_obj["name"] != "" and (img_obj["texture"] is None or img_obj["prev_name"] != img_obj["name"]):
+        if img_obj["name"] != "" and (img_obj["texture"] is None or img_obj["prev_name"] != img_obj["name"]\
+            or img_obj["prev_scale"] != img_obj["scale"]):
             _load_image_texture(key, img_obj["name"], imgs_to_render)
             img_obj["prev_name"] = img_obj["name"]
+            img_obj["prev_scale"] = img_obj["scale"]
 
 
-def load_yolo_predictions(path, image_width, image_height):
+def load_yolo_predictions(path, image_width, image_height, scaled_width, scaled_height):
 
     coords = []
     with open(path, "r") as fp:
@@ -98,12 +146,13 @@ def load_yolo_predictions(path, image_width, image_height):
         line = pred.strip().split(" ")
         _coords = list(map(lambda x: float(x), line[1:-1]))
 
-        real_coords = yolo_to_x0y0(_coords, image_width, image_height, image_width, image_height)
+        real_coords = yolo_to_x0y0(_coords, scaled_width, scaled_height)
+        offset = 0 #if image_width == scaled_width else -2
         coords.append({
-            "x_min": real_coords[0],
-            "y_min": real_coords[1],
-            "x_max": real_coords[2],
-            "y_max": real_coords[3],
+            "x_min": real_coords[0] + offset,
+            "y_min": real_coords[1] + offset,
+            "x_max": real_coords[2] + offset,
+            "y_max": real_coords[3] + offset,
             "width": real_coords[2] - real_coords[0],
             "height": real_coords[3] - real_coords[1],
             "label": line[0],
@@ -114,4 +163,4 @@ def load_yolo_predictions(path, image_width, image_height):
 def get_image_size(img_path):
 
     img = Image.open(img_path)
-    return img.size
+    return [img.size[0], img.size[1]]
