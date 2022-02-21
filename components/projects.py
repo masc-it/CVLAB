@@ -26,10 +26,13 @@ class Project(object):
         for p in self.paths:
             data_path = p["data"]
             ext_ann_path = p["ext_annotations"]
-            self.import_annotations(data_path, ext_ann_path)
+            # init imgs dict with imgs in data_path
+            for f in glob.glob(data_path + "/*.jpg"):
+                name = os.path.basename(f).rsplit('.')[0]
+                self.imgs[name] = ImageInfo(name, f)
+        self.load_annotations()        
         
-        
-    def import_annotations(self, data_path, yolo_annotations_path):
+    def import_yolo_annotations(self, data_path, yolo_annotations_path):
 
         for f in glob.glob(f"{yolo_annotations_path}/*.txt"):
             name = os.path.basename(f).rsplit('.')[0]
@@ -53,11 +56,9 @@ class Project(object):
             name = os.path.basename(f).rsplit('.')[0]
             with open(f, "r") as fp:
                 data = json.load(fp)
-            
-            img_path = data["img_path"]
 
             bboxes = list(map(lambda x: BBox(x["xmin"],x["ymin"],x["xmax"],x["ymax"], x["label"], x["conf"]), data["bboxes"]))
-            img_info = ImageInfo(name, img_path)
+            img_info = self.imgs[name]
             
             img_info.add_bboxes(bboxes)
             self.imgs[name] = img_info
@@ -113,7 +114,7 @@ class Project(object):
                 with open(f"projects/{self.name}/annotations/{img_info.name}.json", "w") as fp:
                     scaled_bboxes = []
                     for bbox in img_info.bboxes:
-                        scaled_bboxes.append(bbox.scale((img_info.scaled_w, img_info.scaled_h), (img_info.w, img_info.h)).as_obj())
+                        scaled_bboxes.append(bbox.scale((img_info.w, img_info.h), (img_info.orig_w, img_info.orig_h)).as_obj())
                     data = {"img_path": img_info.path, "bboxes": scaled_bboxes}
                     json.dump(data, fp, indent=1 )
                 img_info.set_changed(False)

@@ -85,6 +85,17 @@ def header_lab():
         imgui.open_popup("Labels")
     _open_labels_popup(project.labels)
 
+    imgui.same_line()
+    scale_changed, frame_data["img_scale"] = imgui.slider_float(
+                label="Zoom",
+                value=frame_data["img_scale"],
+                min_value=0.5,
+                max_value=2.0,
+                format="%.1f",
+            )
+    if scale_changed:
+        frame_data["scale_changed"] = True
+
 
 def header_auto_annotation():
     global frame_data
@@ -254,8 +265,8 @@ def _files_list():
     project : Project = frame_data["project"]
     img_data = frame_data["imgs_to_render"]["annotate_preview"]
     
-    frame_data["x_offset"] = (frame_data["viewport"][0] / 5)
-
+    frame_data["x_offset"] = int(frame_data["viewport"][0] / 5)
+    #print(frame_data["x_offset"])
     imgui.begin_child(label="files_list", width=frame_data["x_offset"], height=-1, border=False, )
     
     for i, k in enumerate(project.imgs):
@@ -267,17 +278,19 @@ def _files_list():
                 )
         if clicked or frame_data["scale_changed"]:
             
+            img_data["scale"] = frame_data["img_scale"]
             if clicked:
                 frame_data["scale_changed"] = True
                 base_p = name
                 img_data["name"] = name
-                img_data["scale"] = frame_data["img_scale"]
+                
                 img_data["img_info"] = img_info
 
                 frame_data["selected_file"]["idx"] = i
                 frame_data["selected_file"]["name"] = base_p
-            
-            img_info.change_scale(frame_data["img_scale"])
+            if frame_data["scale_changed"]:
+                frame_data["scale_changed"] = False
+                img_info.change_scale(frame_data["img_scale"])
 
             if frame_data["imgs_info"].get(frame_data["selected_file"]["name"]) is None:
                 frame_data["imgs_info"][frame_data["selected_file"]["name"]] = {}
@@ -321,7 +334,7 @@ def _handle_bbox_resize(frame_data, labeling, img_info: ImageInfo):
         labeling["curr_bbox"].width = abs(labeling["curr_bbox"].xmax - labeling["curr_bbox"].xmin)
         labeling["curr_bbox"].height = abs(labeling["curr_bbox"].ymax - labeling["curr_bbox"].ymin)
         img_info.set_changed(True)
-        
+
 def _update_selected_bbox(frame_data, labeling, project: Project, draw_list):
     found = []
     img_data = frame_data["imgs_to_render"]["annotate_preview"]

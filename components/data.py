@@ -1,6 +1,6 @@
 from __future__ import annotations
 from PIL import Image
-
+from copy import deepcopy
 class BBox(object):
 
     def __init__(self, xmin, ymin, xmax, ymax, label="0", conf=1.0) -> None:
@@ -30,17 +30,17 @@ class BBox(object):
         }
 
     def scale(self, in_size, out_size):
-        bbox = self.as_array()
-        x_scale = float(out_size[0]) / in_size[0]
-        y_scale = float(out_size[1]) / in_size[1]
+        bbox = deepcopy(self.as_array())
+        x_scale = float(out_size[0]) / float(in_size[0])
+        y_scale = float(out_size[1]) / float(in_size[1])
 
         # xmin, ymin
-        bbox[0] = x_scale * bbox[0]
-        bbox[2] = y_scale * bbox[2]
+        bbox[0] = int(x_scale * bbox[0])
+        bbox[1] = int(y_scale * bbox[1])
 
         # xmax, ymax
-        bbox[1] = x_scale * bbox[1]
-        bbox[3] = y_scale * bbox[3]
+        bbox[2] = int(x_scale * bbox[2])
+        bbox[3] = int(y_scale * bbox[3])
 
         return BBox(bbox[0], bbox[1], bbox[2], bbox[3], self.label, self.conf)
 
@@ -67,7 +67,8 @@ class ImageInfo(object):
         img = Image.open(self.path)
         self.w = img.size[0]
         self.h = img.size[1]
-
+        self.orig_w = img.size[0]
+        self.orig_h = img.size[1]
         self.scaled_w = self.w
         self.scaled_h = self.h
     
@@ -77,13 +78,39 @@ class ImageInfo(object):
             return
         self.prev_scale = self.scale
         self.scale = scale
-        scaled_w = int(self.w*scale)
-        scaled_h = int(self.h*scale)
-        self.scaled_w = scaled_w
-        self.scaled_h = scaled_h
 
-        for bbox in self.bboxes:
-            bbox = bbox.scale((self.w, self.h), (scaled_w, scaled_h))
+        curr_w = deepcopy(self.w)
+        curr_h = deepcopy(self.h)
+
+        new_scaled_w = int(self.orig_w*scale)
+        new_scaled_h = int(self.orig_h*scale)
+
+        self.w = new_scaled_w
+        self.h = new_scaled_h
+
+        self.scaled_w = new_scaled_w
+        self.scaled_h = new_scaled_h
+
+        """ k = 1 # 1.2 * scale
+        if scale > 1:
+            k = 0.99
+        else:
+            k = 1.1 """
+        
+        print("changed %f" % scale)
+        print(self.bboxes[0].xmin / curr_w)
+        
+        for i, bbox in enumerate(self.bboxes):
+            new_bbox = bbox.scale((curr_w, curr_h), (new_scaled_w, new_scaled_h))
+            self.bboxes[i].xmin = new_bbox.xmin
+            self.bboxes[i].xmax = new_bbox.xmax
+            self.bboxes[i].ymin = new_bbox.ymin
+            self.bboxes[i].ymax = new_bbox.ymax
+            self.bboxes[i].width = abs(self.bboxes[i].xmax - self.bboxes[i].xmin)
+            self.bboxes[i].height = abs(self.bboxes[i].ymax - self.bboxes[i].ymin)
+        print(self.bboxes[0].xmin / new_scaled_w)
+        print("end")
+
 
     def set_changed(self, value=True):
         self.is_changed = value

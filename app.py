@@ -86,8 +86,8 @@ def main_glfw():
     project : projects.Project = frame_data["projects"][0]
     frame_data["project"]  = project
 
-    #project.init_project()
-    project.load_annotations()
+    project.init_project()
+    #project.load_annotations()
     while not glfw.window_should_close(window):
         glfw.poll_events()
         impl.process_inputs()
