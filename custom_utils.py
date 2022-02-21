@@ -1,9 +1,12 @@
+from typing import List
 import glfw
 import pygame
 import OpenGL.GL as gl
 from PIL import Image
 from math import floor
 from copy import deepcopy
+
+from components.data import BBox
 
 def yolo_to_x0y0(yolo_pred, input_w, input_h):
 
@@ -49,7 +52,7 @@ def resize_bbox(bbox, in_size, out_size):
 
     # xmin, ymin
     bboxx[0] = x_scale * bboxx[0]
-    bboxx[2] = y_scale * bbox[2]
+    bboxx[2] = y_scale * bboxx[2]
 
     # xmax, ymax
     bboxx[1] = x_scale * bboxx[1]
@@ -180,7 +183,7 @@ def load_yolo_predictions(path, image_width, image_height, scaled_width, scaled_
 
 def import_yolo_predictions(path, scaled_width, scaled_height):
 
-    bboxes = []
+    bboxes = List[BBox]
     with open(path, "r") as fp:
         preds = fp.readlines()
     for pred in preds:
@@ -188,17 +191,8 @@ def import_yolo_predictions(path, scaled_width, scaled_height):
         _coords = list(map(lambda x: float(x), line[1:-1]))
 
         real_coords = yolo_to_x0y0(_coords, scaled_width, scaled_height)
-
-        bboxes.append({
-            "x_min": real_coords[0] ,
-            "y_min": real_coords[1] ,
-            "x_max": real_coords[2] ,
-            "y_max": real_coords[3] ,
-            "width": real_coords[2] - real_coords[0],
-            "height": real_coords[3] - real_coords[1],
-            "label": line[0],
-            "conf": line[-1]
-        })
+        bbox = BBox(real_coords[0], real_coords[1], real_coords[2], real_coords[3], line[0], float(line[-1]))
+        bboxes.append(bbox)
     return bboxes
 
 def get_image_size(img_path):
