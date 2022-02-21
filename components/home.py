@@ -277,6 +277,7 @@ def _files_list():
         clicked, _ = imgui.selectable(
                     label=name, selected=(frame_data["selected_file"]["idx"] == i)
                 )
+        
         if clicked or frame_data["scale_changed"]:
             
             img_data["scale"] = frame_data["img_scale"]
@@ -290,14 +291,14 @@ def _files_list():
                 frame_data["selected_file"]["idx"] = i
                 frame_data["selected_file"]["name"] = base_p
             if frame_data["scale_changed"]:
-                img_info.change_scale(frame_data["img_scale"])
                 frame_data["scale_changed"] = False
-
+                img_data["img_info"].change_scale(frame_data["img_scale"])
+                
             if frame_data["imgs_info"].get(frame_data["selected_file"]["name"]) is None:
                 frame_data["imgs_info"][frame_data["selected_file"]["name"]] = {}
-                frame_data["imgs_info"][frame_data["selected_file"]["name"]]["orig_size"] = [img_info.w, img_info.h]
+                frame_data["imgs_info"][frame_data["selected_file"]["name"]]["orig_size"] = [img_data["img_info"].w, img_data["img_info"].h]
 
-            frame_data["imgs_info"][frame_data["selected_file"]["name"]]["scaled_size"] = [img_info.scaled_w, img_info.scaled_h]
+            frame_data["imgs_info"][frame_data["selected_file"]["name"]]["scaled_size"] = [img_data["img_info"].scaled_w, img_data["img_info"].scaled_h]
                      
 
     imgui.end_child()
