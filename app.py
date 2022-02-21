@@ -96,6 +96,7 @@ def main_glfw():
        
         imgui.new_frame()
         on_frame()
+        # print(imgui.get_mouse_pos())
         gl.glClearColor(1., 1., 1., 1)
         gl.glClear(gl.GL_COLOR_BUFFER_BIT)
         imgui.render()

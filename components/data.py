@@ -1,6 +1,7 @@
 from __future__ import annotations
 from PIL import Image
 from copy import deepcopy
+
 class BBox(object):
 
     def __init__(self, xmin, ymin, xmax, ymax, label="0", conf=1.0) -> None:
@@ -35,12 +36,12 @@ class BBox(object):
         y_scale = float(out_size[1]) / float(in_size[1])
 
         # xmin, ymin
-        bbox[0] = int(x_scale * bbox[0])
-        bbox[1] = int(y_scale * bbox[1])
+        bbox[0] = x_scale * bbox[0]
+        bbox[1] = y_scale * bbox[1]
 
         # xmax, ymax
-        bbox[2] = int(x_scale * bbox[2])
-        bbox[3] = int(y_scale * bbox[3])
+        bbox[2] = x_scale * bbox[2]
+        bbox[3] = y_scale * bbox[3]
 
         return BBox(bbox[0], bbox[1], bbox[2], bbox[3], self.label, self.conf)
 
@@ -69,8 +70,8 @@ class ImageInfo(object):
         self.h = img.size[1]
         self.orig_w = img.size[0]
         self.orig_h = img.size[1]
-        self.scaled_w = self.w
-        self.scaled_h = self.h
+        self.scaled_w = img.size[0]
+        self.scaled_h = img.size[1]
     
     def change_scale(self, scale: float):
 
@@ -91,15 +92,6 @@ class ImageInfo(object):
         self.scaled_w = new_scaled_w
         self.scaled_h = new_scaled_h
 
-        """ k = 1 # 1.2 * scale
-        if scale > 1:
-            k = 0.99
-        else:
-            k = 1.1 """
-        
-        print("changed %f" % scale)
-        print(self.bboxes[0].xmin / curr_w)
-        
         for i, bbox in enumerate(self.bboxes):
             new_bbox = bbox.scale((curr_w, curr_h), (new_scaled_w, new_scaled_h))
             self.bboxes[i].xmin = new_bbox.xmin
@@ -108,8 +100,8 @@ class ImageInfo(object):
             self.bboxes[i].ymax = new_bbox.ymax
             self.bboxes[i].width = abs(self.bboxes[i].xmax - self.bboxes[i].xmin)
             self.bboxes[i].height = abs(self.bboxes[i].ymax - self.bboxes[i].ymin)
-        print(self.bboxes[0].xmin / new_scaled_w)
-        print("end")
+        """ print(self.bboxes[0].xmin / new_scaled_w)
+        print("end") """
 
 
     def set_changed(self, value=True):

@@ -265,9 +265,10 @@ def _files_list():
     project : Project = frame_data["project"]
     img_data = frame_data["imgs_to_render"]["annotate_preview"]
     
-    frame_data["x_offset"] = int(frame_data["viewport"][0] / 5)
-    #print(frame_data["x_offset"])
-    imgui.begin_child(label="files_list", width=frame_data["x_offset"], height=-1, border=False, )
+    # add 20 more (scrollbar)
+    frame_data["x_offset"] = int(frame_data["viewport"][0] / 5) + 20
+
+    imgui.begin_child(label="files_list", width=frame_data["x_offset"] - 20, height=-1, border=False, )
     
     for i, k in enumerate(project.imgs):
 
@@ -289,8 +290,8 @@ def _files_list():
                 frame_data["selected_file"]["idx"] = i
                 frame_data["selected_file"]["name"] = base_p
             if frame_data["scale_changed"]:
-                frame_data["scale_changed"] = False
                 img_info.change_scale(frame_data["img_scale"])
+                frame_data["scale_changed"] = False
 
             if frame_data["imgs_info"].get(frame_data["selected_file"]["name"]) is None:
                 frame_data["imgs_info"][frame_data["selected_file"]["name"]] = {}
@@ -300,7 +301,7 @@ def _files_list():
                      
 
     imgui.end_child()
-    imgui.same_line()
+    imgui.same_line(position=frame_data["x_offset"])
 
 def _handle_bbox_drag(frame_data, labeling, img_info: ImageInfo):
     if imgui.is_mouse_down() and labeling["curr_bbox"] is not None:
@@ -335,8 +336,9 @@ def _handle_bbox_resize(frame_data, labeling, img_info: ImageInfo):
         labeling["curr_bbox"].height = abs(labeling["curr_bbox"].ymax - labeling["curr_bbox"].ymin)
         img_info.set_changed(True)
 
-def _update_selected_bbox(frame_data, labeling, project: Project, draw_list):
+def _update_selected_bbox(labeling, project: Project, draw_list):
     found = []
+    global frame_data
     img_data = frame_data["imgs_to_render"]["annotate_preview"]
     img_info : ImageInfo = img_data["img_info"]
 
@@ -379,7 +381,7 @@ def _annotation_screen():
     labeling = frame_data["labeling"]
     project : Project = frame_data["project"]
 
-    imgui.begin_child(label="img_preview", width=-1, height=-1, border=False,)
+    imgui.begin_child(label="img_preview", width=0, height=0, border=False,)
     if img_data["texture"] is not None:
         imgui.image(img_data["texture"], img_data["scaled_width"], img_data["scaled_height"])
     
@@ -392,7 +394,7 @@ def _annotation_screen():
         labeling["curr_bbox"].width = abs(labeling["curr_bbox"].xmax - labeling["curr_bbox"].xmin)
         labeling["curr_bbox"].height = abs(labeling["curr_bbox"].ymax - labeling["curr_bbox"].ymin)
 
-        img_info.bboxes.append(deepcopy(labeling["curr_bbox"]))
+        img_info.bboxes.append(labeling["curr_bbox"])
         if labeling["curr_bbox"] is not None:
             labeling["curr_bbox"] = None
         img_info.set_changed(True)
@@ -426,7 +428,7 @@ def _annotation_screen():
     else: # draw bboxes and handle interaction
         
         if img_data["img_info"] is not None:
-            _update_selected_bbox(frame_data, labeling, project, draw_list)
+            _update_selected_bbox(labeling, project, draw_list)
             
         _handle_bbox_drag(frame_data, labeling,img_info)
         _handle_bbox_resize(frame_data, labeling,img_info)
