@@ -1,9 +1,12 @@
+from __future__ import annotations
 import glfw
 import pygame
 import OpenGL.GL as gl
 from PIL import Image
 from math import floor
 from copy import deepcopy
+
+from components.data import BBox, ImageInfo
 
 def yolo_to_x0y0(yolo_pred, input_w, input_h):
 
@@ -49,7 +52,7 @@ def resize_bbox(bbox, in_size, out_size):
 
     # xmin, ymin
     bboxx[0] = x_scale * bboxx[0]
-    bboxx[2] = y_scale * bbox[2]
+    bboxx[2] = y_scale * bboxx[2]
 
     # xmax, ymax
     bboxx[1] = x_scale * bboxx[1]
@@ -91,16 +94,18 @@ def load_image_from_file(image_name, scale=1):
     print(orig_width)
     print(orig_height)
 
-    print(f"orig ar: {orig_width/orig_height}")
+    #print(f"orig ar: {orig_width/orig_height}")
 
     if scale != 1:
         """ w = orig_width * scale
         w = w * (orig_height/orig_width)
         h = orig_height """
-        basewidth = int(orig_width * scale)
+        """ basewidth = int(orig_width * scale)
         wpercent = (basewidth/float(orig_width))
-        hsize = int((float(orig_height)*float(wpercent)))
-        textureSurface = pygame.transform.smoothscale(textureSurface, [basewidth, hsize] )
+        hsize = int((float(orig_height)*float(wpercent))) """
+        scaled_w = int(orig_width*scale)
+        scaled_h = int(orig_height*scale)
+        textureSurface = pygame.transform.smoothscale(textureSurface, [scaled_w, scaled_h] )
     textureData = pygame.image.tostring(textureSurface, "RGB", 1)
 
     width = textureSurface.get_width()
@@ -109,7 +114,7 @@ def load_image_from_file(image_name, scale=1):
     print("scaled")
     print(width)
     print(height)
-    print(f"scaled ar: {width/height}")
+    # print(f"scaled ar: {width/height}")
     texture = gl.glGenTextures(1)
     gl.glBindTexture(gl.GL_TEXTURE_2D, texture)
     gl.glPixelStorei(gl.GL_UNPACK_ALIGNMENT, 1)
@@ -143,9 +148,11 @@ def load_images(imgs_to_render):
 
     for key in imgs_to_render:
         img_obj = imgs_to_render[key]
-        if img_obj["name"] != "" and (img_obj["texture"] is None or img_obj["prev_name"] != img_obj["name"]\
+        img_info : ImageInfo = img_obj["img_info"]
+
+        if img_info is not None and (img_obj["texture"] is None or img_obj["prev_name"] != img_obj["name"]\
             or img_obj["prev_scale"] != img_obj["scale"]):
-            _load_image_texture(key, img_obj["name"], imgs_to_render)
+            _load_image_texture(key, img_info.path, imgs_to_render)
             img_obj["prev_name"] = img_obj["name"]
             img_obj["prev_scale"] = img_obj["scale"]
 
@@ -180,7 +187,7 @@ def load_yolo_predictions(path, image_width, image_height, scaled_width, scaled_
 
 def import_yolo_predictions(path, scaled_width, scaled_height):
 
-    bboxes = []
+    bboxes : list[BBox] = []
     with open(path, "r") as fp:
         preds = fp.readlines()
     for pred in preds:
@@ -188,17 +195,8 @@ def import_yolo_predictions(path, scaled_width, scaled_height):
         _coords = list(map(lambda x: float(x), line[1:-1]))
 
         real_coords = yolo_to_x0y0(_coords, scaled_width, scaled_height)
-
-        bboxes.append({
-            "x_min": real_coords[0] ,
-            "y_min": real_coords[1] ,
-            "x_max": real_coords[2] ,
-            "y_max": real_coords[3] ,
-            "width": real_coords[2] - real_coords[0],
-            "height": real_coords[3] - real_coords[1],
-            "label": line[0],
-            "conf": line[-1]
-        })
+        bbox = BBox(real_coords[0], real_coords[1], real_coords[2], real_coords[3], line[0], float(line[-1]))
+        bboxes.append(bbox)
     return bboxes
 
 def get_image_size(img_path):

@@ -57,7 +57,7 @@ frame_data = {
         "3": "2"
     },
     "prev_cursor": 221185, # glfw.ARROW_CURSOR
-    "y_offset": 146,
+    "y_offset": 88,
     "progress": 0,
     "folder_path": "D:/Projects/python/semantics/project/test_final/imgs", #D:/Projects/python/semantics/project/test_final/images
     "model_path": "D:/Projects/python/pdf-toolbox/pdf_toolbox/backend/data/pdf_best_multi_nano.pt", #D:/Projects/python/pdf-toolbox/pdf_toolbox/backend/data/pdf_best_multi_nano.pt

@@ -13,10 +13,11 @@ import OpenGL.GL as gl
 from stb import image as im
 import imgui
 
-from components import home
+from components import home, projects
 import ctypes
 import custom_utils
 from variables import frame_data
+
 
 myappid = 'mascit.app.yololab' # arbitrary string
 ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
@@ -30,7 +31,9 @@ def setup_images():
         frame_data["imgs_to_render"][i] = {
             "prev_name": "",
             "name": "",
-            "texture": None
+            "texture": None,
+            "scale": 1.0,
+            "img_info" : None
         }
 
 
@@ -77,6 +80,14 @@ def main_glfw():
 
     setup_images()
     
+    frame_data["projects"] = projects.load_projects()
+
+    # test
+    project : projects.Project = frame_data["projects"][0]
+    frame_data["project"]  = project
+
+    project.init_project()
+    #project.load_annotations()
     while not glfw.window_should_close(window):
         glfw.poll_events()
         impl.process_inputs()
@@ -85,6 +96,7 @@ def main_glfw():
        
         imgui.new_frame()
         on_frame()
+        # print(imgui.get_mouse_pos())
         gl.glClearColor(1., 1., 1., 1)
         gl.glClear(gl.GL_COLOR_BUFFER_BIT)
         imgui.render()
@@ -125,11 +137,6 @@ def on_frame():
     imgui.begin("Custom window", None, flags=flags)
     
     home.header()
-    
-    home.inference_progress()
-    
-    if frame_data["done"]:
-        home.preview()
 
     imgui.end()
 
