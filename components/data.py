@@ -1,6 +1,5 @@
-from copy import deepcopy
-from PIL import Image
 from __future__ import annotations
+from PIL import Image
 
 class BBox(object):
 
@@ -17,6 +16,18 @@ class BBox(object):
     
     def as_array(self):
         return [self.xmin, self.ymin, self.xmax, self.ymax]
+    
+    def as_obj(self):
+        return {
+            "xmin": self.xmin,
+            "ymin": self.ymin,
+            "xmax": self.xmax,
+            "ymax": self.ymax,
+            "width": self.width,
+            "height": self.height,
+            "conf": self.conf,
+            "label": self.label
+        }
 
     def scale(self, in_size, out_size):
         bbox = self.as_array()
@@ -31,7 +42,7 @@ class BBox(object):
         bbox[1] = x_scale * bbox[1]
         bbox[3] = y_scale * bbox[3]
 
-        return bbox
+        return BBox(bbox[0], bbox[1], bbox[2], bbox[3], self.label, self.conf)
 
 
 class ImageInfo(object):
@@ -43,6 +54,7 @@ class ImageInfo(object):
     def __init__(self, name, path) -> None:
         self.name = name
         self.path = path
+        self.bboxes = []
         self._set_size()
     
     def add_bbox(self, bbox: BBox):
@@ -55,9 +67,14 @@ class ImageInfo(object):
         img = Image.open(self.path)
         self.w = img.size[0]
         self.h = img.size[1]
+
+        self.scaled_w = self.w
+        self.scaled_h = self.h
     
     def change_scale(self, scale: float):
 
+        if self.scale == scale:
+            return
         self.prev_scale = self.scale
         self.scale = scale
         scaled_w = int(self.w*scale)
@@ -89,11 +106,13 @@ class LabelInfo(object):
 class Labels(object):
     labels : list[LabelInfo] = []
     
+    labels_map : dict[str, LabelInfo] = {}
     shortcuts : dict[str, LabelInfo] = {}
 
     def add_label(self, label: LabelInfo):
         self.labels.append(label)
 
+        self.labels_map[label.index] = label
         self.shortcuts[label.shortcut] = label
 
     def __getitem__(self, i):

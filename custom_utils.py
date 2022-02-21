@@ -1,4 +1,4 @@
-from typing import List
+from __future__ import annotations
 import glfw
 import pygame
 import OpenGL.GL as gl
@@ -6,7 +6,7 @@ from PIL import Image
 from math import floor
 from copy import deepcopy
 
-from components.data import BBox
+from components.data import BBox, ImageInfo
 
 def yolo_to_x0y0(yolo_pred, input_w, input_h):
 
@@ -100,10 +100,12 @@ def load_image_from_file(image_name, scale=1):
         """ w = orig_width * scale
         w = w * (orig_height/orig_width)
         h = orig_height """
-        basewidth = int(orig_width * scale)
+        """ basewidth = int(orig_width * scale)
         wpercent = (basewidth/float(orig_width))
-        hsize = int((float(orig_height)*float(wpercent)))
-        textureSurface = pygame.transform.smoothscale(textureSurface, [basewidth, hsize] )
+        hsize = int((float(orig_height)*float(wpercent))) """
+        scaled_w = int(orig_width*scale)
+        scaled_h = int(orig_height*scale)
+        textureSurface = pygame.transform.smoothscale(textureSurface, [scaled_w, scaled_h] )
     textureData = pygame.image.tostring(textureSurface, "RGB", 1)
 
     width = textureSurface.get_width()
@@ -146,9 +148,11 @@ def load_images(imgs_to_render):
 
     for key in imgs_to_render:
         img_obj = imgs_to_render[key]
-        if img_obj["name"] != "" and (img_obj["texture"] is None or img_obj["prev_name"] != img_obj["name"]\
+        img_info : ImageInfo = img_obj["img_info"]
+
+        if img_info is not None and (img_obj["texture"] is None or img_obj["prev_name"] != img_obj["name"]\
             or img_obj["prev_scale"] != img_obj["scale"]):
-            _load_image_texture(key, img_obj["name"], imgs_to_render)
+            _load_image_texture(key, img_info.path, imgs_to_render)
             img_obj["prev_name"] = img_obj["name"]
             img_obj["prev_scale"] = img_obj["scale"]
 
@@ -183,7 +187,7 @@ def load_yolo_predictions(path, image_width, image_height, scaled_width, scaled_
 
 def import_yolo_predictions(path, scaled_width, scaled_height):
 
-    bboxes = List[BBox]
+    bboxes : list[BBox] = []
     with open(path, "r") as fp:
         preds = fp.readlines()
     for pred in preds:

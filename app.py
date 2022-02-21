@@ -31,7 +31,9 @@ def setup_images():
         frame_data["imgs_to_render"][i] = {
             "prev_name": "",
             "name": "",
-            "texture": None
+            "texture": None,
+            "scale": 1.0,
+            "img_info" : None
         }
 
 
@@ -81,8 +83,11 @@ def main_glfw():
     frame_data["projects"] = projects.load_projects()
 
     # test
-    frame_data["project"] = frame_data["projects"][0]
+    project : projects.Project = frame_data["projects"][0]
+    frame_data["project"]  = project
 
+    #project.init_project()
+    project.load_annotations()
     while not glfw.window_should_close(window):
         glfw.poll_events()
         impl.process_inputs()
