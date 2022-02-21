@@ -13,10 +13,11 @@ import OpenGL.GL as gl
 from stb import image as im
 import imgui
 
-from components import home
+from components import home, projects
 import ctypes
 import custom_utils
 from variables import frame_data
+
 
 myappid = 'mascit.app.yololab' # arbitrary string
 ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
@@ -77,6 +78,11 @@ def main_glfw():
 
     setup_images()
     
+    frame_data["projects"] = projects.load_projects()
+
+    # test
+    frame_data["project"] = frame_data["projects"][0]
+
     while not glfw.window_should_close(window):
         glfw.poll_events()
         impl.process_inputs()
@@ -125,11 +131,6 @@ def on_frame():
     imgui.begin("Custom window", None, flags=flags)
     
     home.header()
-    
-    home.inference_progress()
-    
-    if frame_data["done"]:
-        home.preview()
 
     imgui.end()
 

@@ -7,6 +7,7 @@ import glob, os
 import custom_utils
 import glfw
 from copy import deepcopy
+from .projects import Project
 
 def start_inference(frame_data):
     
@@ -28,8 +29,66 @@ def start_inference(frame_data):
 
 def header():
     global frame_data
+    
+    if imgui.begin_tab_bar("sections"):
+
+        if imgui.begin_tab_item("LAB")[0]:
+
+            header_lab()
+            preview()
+            imgui.end_tab_item()
+        
+        if imgui.begin_tab_item("Auto annotation")[0]:
+            header_auto_annotation()
+            inference_progress()
+            if frame_data["done"]:
+                preview()
+            imgui.end_tab_item()
+        
+        if imgui.begin_tab_item("Settings")[0]:
+            imgui.end_tab_item()
+        imgui.end_tab_bar()
+
+
+def header_lab():
+    global frame_data
     labeling = frame_data["labeling"]
 
+    project : Project = frame_data["project"]
+    annotate_click = imgui.button("New box" if not labeling["new_box_requested"] else "Cancel")        
+
+    if annotate_click or imgui.is_key_pressed(glfw.KEY_N):
+        labeling["new_box_requested"] = not labeling["new_box_requested"]
+
+    imgui.same_line()
+    save_click = imgui.button("Save")
+
+    if save_click:
+
+        project.save_annotations()
+        """ if frame_data["predictions"] is not None:
+            for file in frame_data["predictions"]:
+                
+                with open(frame_data["folder_path"] + f"/exp/predictions/labels/{file.rsplit('.')[0]}.txt", "w") as fp:
+                    for bbox in frame_data["predictions"][file]:
+                        yolo_coords = custom_utils.voc_to_yolo(
+                            (frame_data["imgs_info"][file]["scaled_size"][0], frame_data["imgs_info"][file]["scaled_size"][1]),
+                            (frame_data["imgs_info"][file]["orig_size"][0], frame_data["imgs_info"][file]["orig_size"][1]), 
+                            [float(bbox["x_min"]), float(bbox["y_min"]), float(bbox["x_max"]), float(bbox["y_max"])])
+                        fp.write(f'{bbox["label"]} ' + " ".join([str(a) for a in yolo_coords]) + f' {bbox["conf"]}\n')
+ """
+    imgui.same_line()
+    labels_click = imgui.button("Labels")
+
+    if labels_click:
+        imgui.open_popup("Labels")
+    _open_labels_popup(frame_data["labels"])
+
+
+def header_auto_annotation():
+    global frame_data
+
+    project : Project = frame_data["project"]
     if frame_data["is_running"]:
         imgui.internal.push_item_flag(imgui.internal.ITEM_DISABLED, True)
         imgui.push_style_var(imgui.STYLE_ALPHA, imgui.get_style().alpha *  0.5)
@@ -41,21 +100,21 @@ def header():
 
     model_file = file_selector("Choose model path...", False)
     if model_file is not None:
-        frame_data["model_path"] = model_file
+        project.model_path = model_file
     
-    if frame_data["model_path"] != "":
-        imgui.text(frame_data["model_path"])
+    if project.model_path != "":
+        imgui.text(project.model_path)
     
     imgui.next_column()
     
-    images_btn_title = "Choose images directory..."
+    """ images_btn_title = "Choose images directory..."
     if imgui.button(images_btn_title):
         imgui.open_popup(images_btn_title)
     images_path = file_selector(images_btn_title, True)
     if images_path is not None:
-        frame_data["folder_path"] = images_path
+        project.pa = images_path
     if frame_data["folder_path"] != "":
-        imgui.text(frame_data["folder_path"])
+        imgui.text(frame_data["folder_path"]) """
     
     
     imgui.next_column()
@@ -103,35 +162,6 @@ def header():
             thread.start()
         else:
             frame_data["is_running"] = False
-
-    imgui.same_line()
-    annotate_click = imgui.button("New box" if not labeling["new_box_requested"] else "Cancel")        
-
-    if annotate_click or imgui.is_key_pressed(glfw.KEY_N):
-        labeling["new_box_requested"] = not labeling["new_box_requested"]
-
-    imgui.same_line()
-    save_click = imgui.button("Save")
-
-    if save_click:
-        if frame_data["predictions"] is not None:
-            os.makedirs(frame_data["folder_path"] + "/pseudo/", exist_ok=True)
-            for file in frame_data["predictions"]:
-                
-                with open(frame_data["folder_path"] + f"/exp/predictions/labels/{file.rsplit('.')[0]}.txt", "w") as fp:
-                    for bbox in frame_data["predictions"][file]:
-                        yolo_coords = custom_utils.voc_to_yolo(
-                            (frame_data["imgs_info"][file]["scaled_size"][0], frame_data["imgs_info"][file]["scaled_size"][1]),
-                            (frame_data["imgs_info"][file]["orig_size"][0], frame_data["imgs_info"][file]["orig_size"][1]), 
-                            [float(bbox["x_min"]), float(bbox["y_min"]), float(bbox["x_max"]), float(bbox["y_max"])])
-                        fp.write(f'{bbox["label"]} ' + " ".join([str(a) for a in yolo_coords]) + f' {bbox["conf"]}\n')
-
-    imgui.same_line()
-    labels_click = imgui.button("Labels")
-
-    if labels_click:
-        imgui.open_popup("Labels")
-    _open_labels_popup(frame_data["labels"])
 
     imgui.same_line()
     scale_changed, frame_data["img_scale"] = imgui.slider_float(
