@@ -2,10 +2,10 @@ from .data import *
 import imgui
 from .projects import Project
 from yolov5 import detect
-import glob
+import glob, os
 import threading
-from home import _annotation_screen
-from file_selector import file_selector
+from . import annotation
+from .file_selector import file_selector
 
 
 def start_inference(frame_data):
@@ -16,10 +16,15 @@ def start_inference(frame_data):
     frame_data["imgs_to_render"]["inference_preview"]["scale"] = 1
 
     exp : Experiment = frame_data["experiment"]
+
+    coll_info : CollectionInfo = CollectionInfo(exp.exp_name, exp.exp_name, exp.data_path)
+
     for _, (bbox, img)  in enumerate(predictions):
 
         bbox : BBox = BBox(bbox["xmin"], bbox["ymin"], bbox["xmax"], bbox["ymax"], bbox["class"], bbox["conf"])
-        
+        name_ext = os.path.basename(img).rsplit('.')
+        img_info = ImageInfo(name_ext[0], name_ext[1], coll_info)
+        img_info.add_bbox(bbox)
         # print(img)
         frame_data["imgs_to_render"]["inference_preview"]["name"] = img
         # frame_data["img"] = img
@@ -31,13 +36,12 @@ def start_inference(frame_data):
     frame_data["progress"] = 0
     frame_data["done"] = True
 
-def auto_ann_content():
-    _files_list("inference_preview")
-    _annotation_screen("inference_preview", allow_edit=False)
+def auto_ann_content(frame_data):
+    _files_list(frame_data, "inference_preview")
+    annotation._annotation_screen(frame_data, "inference_preview", allow_edit=False)
 
 
-def header_auto_annotation():
-    global frame_data
+def header_auto_annotation(frame_data):
 
     project : Project = frame_data["project"]
     if frame_data["is_running"]:
@@ -124,8 +128,7 @@ def header_auto_annotation():
     if scale_changed:
         frame_data["scale_changed"] = True
 
-def _files_list(img_render_id):
-    global frame_data
+def _files_list(frame_data, img_render_id):
     project : Project = frame_data["project"]
     experiments : dict[str, Experiment] = project.experiments
 

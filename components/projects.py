@@ -17,13 +17,15 @@ class Project(object):
         self.collections_obj : dict = info_obj["collections"]
         self.model_path = info_obj["model_path"]
         self.labels_obj = info_obj["labels"]
+        self.project_path = project_path
+        
         self.imgs : dict[str, dict[str, ImageInfo]] = {}
         self.collections : dict[str, CollectionInfo]= {}
         self.labels : Labels = self.load_labels()
 
         self.experiments : dict[str, Experiment] = {}
         self.load_experiments()
-        self.project_path = project_path
+        
 
     def __str__(self) -> str:
         return json.dumps(self.info_obj, indent=1)

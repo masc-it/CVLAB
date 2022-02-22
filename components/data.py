@@ -155,8 +155,15 @@ class Experiment(object):
         self.model_path = model_path
         self.data_path = data_path
         self.imgs : list[ImageInfo] = []
+        self._load_images()
     
     def add_image(self, img_info: ImageInfo):
         self.imgs.append(img_info)
     
-
+    def _load_images(self):
+        import glob, os
+        coll_info : CollectionInfo = CollectionInfo(self.exp_name, self.exp_name, self.data_path)
+        for img in glob.glob(f"{self.data_path}/*.*"):
+            name_ext = os.path.basename(img).rsplit('.')
+            img_info = ImageInfo(name_ext[0], name_ext[1], coll_info)
+            self.imgs.append(img_info)
