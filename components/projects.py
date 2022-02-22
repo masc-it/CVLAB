@@ -11,7 +11,7 @@ class Project(object):
     
     page_status = {}
 
-    def __init__(self, name, info_obj) -> None:
+    def __init__(self, name:str, info_obj: dict, project_path:str) -> None:
         self.name = name
         self.info_obj = info_obj
         self.collections_obj : dict = info_obj["collections"]
@@ -20,6 +20,10 @@ class Project(object):
         self.imgs : dict[str, dict[str, ImageInfo]] = {}
         self.collections : dict[str, CollectionInfo]= {}
         self.labels : Labels = self.load_labels()
+
+        self.experiments : dict[str, Experiment] = {}
+        self.load_experiments()
+        self.project_path = project_path
 
     def __str__(self) -> str:
         return json.dumps(self.info_obj, indent=1)
@@ -137,6 +141,16 @@ class Project(object):
                         json.dump(data, fp, indent=1 )
                     img_info.set_changed(False)
 
+    def load_experiments(self):
+        
+        with open(f"{self.project_path}/experiments.json", "r") as fp:
+            exp_obj =json.load(fp)
+        
+        for exp_key in exp_obj:
+            exp = Experiment("", exp_obj[exp_key], exp_key) 
+            self.experiments[exp_key] = exp
+        
+        return self.experiments
 
 def load_projects():
 
@@ -145,7 +159,7 @@ def load_projects():
         
         with open(p + "/info.json", "r") as fp:
             info_obj = json.load(fp)
-        projects.append(Project(os.path.basename(p), info_obj))
+        projects.append(Project(os.path.basename(p), info_obj, p))
     
     return projects
 

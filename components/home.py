@@ -2,31 +2,13 @@ import imgui
 from components.data import BBox, ImageInfo, Labels
 from variables import frame_data
 import threading
-from yolov5 import detect
+
 from .file_selector import file_selector
-import glob, os
-import custom_utils
+from auto_annotation import header_auto_annotation, auto_ann_content
 import glfw
 from copy import deepcopy
 from .projects import Project
 
-def start_inference(frame_data):
-    
-    predictions = detect.run(weights=frame_data["model_path"], imgsz=[1280, 1280], conf_thres=frame_data["threshold_conf"], iou_thres=frame_data["threshold_iou"], save_conf=True,
-                exist_ok=True, save_txt=True, source=frame_data["folder_path"], project=frame_data["folder_path"] + "/exp", name="predictions",)
-    
-    frame_data["imgs_to_render"]["inference_preview"]["scale"] = 1
-    for _, (_, img)  in enumerate(predictions):
-        # print(img)
-        frame_data["imgs_to_render"]["inference_preview"]["name"] = img
-        # frame_data["img"] = img
-        frame_data["progress"] += 0.1
-        if not frame_data["is_running"]:
-            break
-        
-    frame_data["is_running"] = False
-    frame_data["progress"] = 0
-    frame_data["done"] = True
 
 def header():
     global frame_data
@@ -41,9 +23,7 @@ def header():
         
         if imgui.begin_tab_item("Auto annotation")[0]:
             header_auto_annotation()
-            inference_progress()
-            if frame_data["done"]:
-                auto_ann_content()
+            auto_ann_content()
             imgui.end_tab_item()
         
         if imgui.begin_tab_item("Settings")[0]:
@@ -97,94 +77,6 @@ def header_lab():
         frame_data["scale_changed"] = True
 
 
-def header_auto_annotation():
-    global frame_data
-
-    project : Project = frame_data["project"]
-    if frame_data["is_running"]:
-        imgui.internal.push_item_flag(imgui.internal.ITEM_DISABLED, True)
-        imgui.push_style_var(imgui.STYLE_ALPHA, imgui.get_style().alpha *  0.5)
-    imgui.columns(2, "header_2", False)
-
-    model_btn_title = "Choose model path..."
-    if imgui.button(model_btn_title):
-        imgui.open_popup("Choose model path...")
-
-    model_file = file_selector("Choose model path...", False)
-    if model_file is not None:
-        project.model_path = model_file
-    
-    if project.model_path != "":
-        imgui.text(project.model_path)
-    
-    imgui.next_column()
-    
-    images_btn_title = "Choose images directory..."
-    if imgui.button(images_btn_title):
-        imgui.open_popup(images_btn_title)
-    images_path = file_selector(images_btn_title, True)
-    if images_path is not None:
-        frame_data["folder_path"] = images_path
-    if frame_data["folder_path"] != "":
-        imgui.text(frame_data["folder_path"])
-    
-    imgui.next_column()
-    imgui.separator()
-    _, frame_data["threshold_conf"] = imgui.slider_float(
-                label="Conf. threshold",
-                value=frame_data["threshold_conf"],
-                min_value=0.0,
-                max_value=1.0,
-                format="%.2f",
-            )
-    imgui.next_column()
-    _, frame_data["threshold_iou"] = imgui.slider_float(
-                label="IoU threshold",
-                value=frame_data["threshold_iou"],
-                min_value=0.0,
-                max_value=1.0,
-                format="%.2f",
-            )
-    imgui.separator()
-    
-    if frame_data["is_running"]:
-        imgui.internal.pop_item_flag()
-        imgui.pop_style_var()
-
-    imgui.columns(1)
-
-    if frame_data["is_running"]:
-        start_clicked = imgui.button("Stop analysis")
-    else:
-        start_clicked = imgui.button("Start analysis")
-
-    if start_clicked:
-
-        if not frame_data["is_running"]:
-            frame_data["is_running"] = True
-            frame_data["progress"] = 0
-            frame_data["done"] = False
-            frame_data["predictions"] = {}
-
-            imgs = glob.glob(frame_data["folder_path"] + "/*.jpg")
-            frame_data["num_imgs"] = len(imgs)
-
-            thread = threading.Thread(target=start_inference, args=(frame_data, ))
-            thread.start()
-        else:
-            frame_data["is_running"] = False
-
-    imgui.same_line()
-    scale_changed, frame_data["img_scale"] = imgui.slider_float(
-                label="Zoom",
-                value=frame_data["img_scale"],
-                min_value=0.5,
-                max_value=2.0,
-                format="%.1f",
-            )
-    if scale_changed:
-        frame_data["scale_changed"] = True
-
 def _open_labels_popup(labels : Labels):
     
     imgui.set_next_window_size(700, 350)
@@ -236,31 +128,11 @@ def _open_labels_popup(labels : Labels):
             imgui.close_current_popup()
         imgui.end_popup()
 
-def inference_progress():
-    global frame_data
-    img_data = frame_data["imgs_to_render"]["inference_preview"]
-    if frame_data["is_running"]:
-        
-        imgui.columns(3,"progr", False)
-        imgui.next_column()
-        imgui.progress_bar(
-            fraction=frame_data["progress"] * 10 / frame_data["num_imgs"] , 
-            size=(-1, 0.0),
-            overlay=f"{int(frame_data['progress'] * 10)}/{frame_data['num_imgs']}"
-        )
-        imgui.columns(1)
-        imgui.spacing()
-        if img_data["texture"] is not None:
-            imgui.same_line((frame_data["viewport"][0] / 2) - (img_data["width"] / 2))
-            imgui.image(img_data["texture"], img_data["width"], img_data["height"])
 
 def lab_content():
     _files_list("annotate_preview")
     _annotation_screen("annotate_preview")
 
-def auto_ann_content():
-    _files_list("inference_preview")
-    _annotation_screen("inference_preview", allow_edit=False)
 
 def _files_list(img_render_id):
     global frame_data

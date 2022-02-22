@@ -145,4 +145,18 @@ class CollectionInfo(object):
         self.name = name
         self.id = id
         self.path = path
+
+class Experiment(object):
+
+    i = 0
+    def __init__(self, model_path:str, data_path:str, exp_name: str) -> None:
+        
+        self.exp_name = exp_name
+        self.model_path = model_path
+        self.data_path = data_path
+        self.imgs : list[ImageInfo] = []
     
+    def add_image(self, img_info: ImageInfo):
+        self.imgs.append(img_info)
+    
+
