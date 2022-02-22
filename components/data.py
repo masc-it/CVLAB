@@ -162,8 +162,10 @@ class Experiment(object):
     
     def _load_images(self):
         import glob, os
+        from .projects import Project
         coll_info : CollectionInfo = CollectionInfo(self.exp_name, self.exp_name, self.data_path)
         for img in glob.glob(f"{self.data_path}/*.*"):
             name_ext = os.path.basename(img).rsplit('.')
             img_info = ImageInfo(name_ext[0], name_ext[1], coll_info)
             self.imgs.append(img_info)
+            Project.load_img_annotations(img_info)

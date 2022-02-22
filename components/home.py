@@ -17,11 +17,14 @@ def header():
 
         if imgui.begin_tab_item("LAB")[0]:
 
+            frame_data["y_offset"] = frame_data["y_offset_lab"]
             header_lab()
             lab_content()
             imgui.end_tab_item()
         
         if imgui.begin_tab_item("Auto annotation")[0]:
+            #print(imgui.get_mouse_pos())
+            frame_data["y_offset"] = frame_data["y_offset_auto_ann"]
             header_auto_annotation(frame_data)
             auto_ann_content(frame_data)
             imgui.end_tab_item()

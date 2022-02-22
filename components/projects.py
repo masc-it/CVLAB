@@ -18,7 +18,7 @@ class Project(object):
         self.model_path = info_obj["model_path"]
         self.labels_obj = info_obj["labels"]
         self.project_path = project_path
-        
+
         self.imgs : dict[str, dict[str, ImageInfo]] = {}
         self.collections : dict[str, CollectionInfo]= {}
         self.labels : Labels = self.load_labels()
@@ -86,7 +86,22 @@ class Project(object):
                 bboxes = list(map(lambda x: BBox(x["xmin"],x["ymin"],x["xmax"],x["ymax"], x["label"], x["conf"]), data["bboxes"]))
 
                 img_info.add_bboxes(bboxes)
+    def load_img_annotations(img_info : ImageInfo):
 
+        img_name = img_info.name
+        
+        collection = img_info.collection_info
+
+        annotation_file = f"{collection.path}/annotations/{img_name}.json"
+        if not os.path.exists(annotation_file):
+            return
+        with open(annotation_file, "r") as fp:
+            data = json.load(fp)
+
+        bboxes = list(map(lambda x: BBox(x["xmin"],x["ymin"],x["xmax"],x["ymax"], x["label"], x["conf"]), data["bboxes"]))
+
+        img_info.add_bboxes(bboxes)
+    
     def get_image(self, collection_id) -> ImageInfo:
         for img in self.imgs[collection_id]:
             yield self.imgs[collection_id][img]
