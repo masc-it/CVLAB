@@ -272,37 +272,40 @@ def _files_list(img_render_id):
 
     imgui.begin_child(label="files_list", width=frame_data["x_offset"] - 20, height=-1, border=False, )
     
-    for i, img_info in enumerate(project.get_image()):
+    for collection_id in project.collections:
 
-        # img_info = project.imgs[k]
-        name = img_info.name
-        clicked, _ = imgui.selectable(
-                    label=name, selected=(frame_data["selected_file"]["idx"] == i)
-                )
-        
-        if clicked or frame_data["scale_changed"]:
-            
-            img_data["scale"] = frame_data["img_scale"]
-            if clicked:
-                frame_data["scale_changed"] = True
-                base_p = name
-                img_data["name"] = name
+        if imgui.tree_node(project.collections[collection_id].name):
+            for i, img_info in enumerate(project.get_image(collection_id)):
+
+                # img_info = project.imgs[k]
+                name = img_info.name
+                clicked, _ = imgui.selectable(
+                            label=name, selected=(frame_data["selected_file"]["idx"] == i and frame_data["selected_file"]["collection"] == collection_id)
+                        )
                 
-                img_data["img_info"] = img_info
+                if clicked or frame_data["scale_changed"]:
+                    
+                    img_data["scale"] = frame_data["img_scale"]
+                    if clicked:
+                        frame_data["scale_changed"] = True
+                        base_p = name
+                        img_data["name"] = name
+                        
+                        img_data["img_info"] = img_info
+                        frame_data["selected_file"]["collection"] = collection_id
+                        frame_data["selected_file"]["idx"] = i
+                        frame_data["selected_file"]["name"] = base_p
+                    if frame_data["scale_changed"]:
+                        frame_data["scale_changed"] = False
+                        img_data["img_info"].change_scale(frame_data["img_scale"])
+                        
+                    if frame_data["imgs_info"].get(frame_data["selected_file"]["name"]) is None:
+                        frame_data["imgs_info"][frame_data["selected_file"]["name"]] = {}
+                        frame_data["imgs_info"][frame_data["selected_file"]["name"]]["orig_size"] = [img_data["img_info"].w, img_data["img_info"].h]
 
-                frame_data["selected_file"]["idx"] = i
-                frame_data["selected_file"]["name"] = base_p
-            if frame_data["scale_changed"]:
-                frame_data["scale_changed"] = False
-                img_data["img_info"].change_scale(frame_data["img_scale"])
-                
-            if frame_data["imgs_info"].get(frame_data["selected_file"]["name"]) is None:
-                frame_data["imgs_info"][frame_data["selected_file"]["name"]] = {}
-                frame_data["imgs_info"][frame_data["selected_file"]["name"]]["orig_size"] = [img_data["img_info"].w, img_data["img_info"].h]
-
-            frame_data["imgs_info"][frame_data["selected_file"]["name"]]["scaled_size"] = [img_data["img_info"].scaled_w, img_data["img_info"].scaled_h]
-                     
-
+                    frame_data["imgs_info"][frame_data["selected_file"]["name"]]["scaled_size"] = [img_data["img_info"].scaled_w, img_data["img_info"].scaled_h]
+            imgui.tree_pop()
+                        
     imgui.end_child()
     imgui.same_line(position=frame_data["x_offset"])
 

@@ -52,9 +52,10 @@ class ImageInfo(object):
     prev_scale = 0.0
     scale = 1.0
     is_changed = False
-    def __init__(self, name, path) -> None:
+    def __init__(self, name, extension, collection_info: CollectionInfo) -> None:
         self.name = name
-        self.path = path
+        self.collection_info = collection_info
+        self.path = collection_info.path + f"/{self.name}.{extension}"
         self.bboxes = []
         self._set_size()
     
@@ -137,5 +138,11 @@ class Labels(object):
     def __getitem__(self, i):
         return self.labels[i]
     
-    
+
+class CollectionInfo(object):
+
+    def __init__(self, name: str, id: str, path: str) -> None:
+        self.name = name
+        self.id = id
+        self.path = path
     

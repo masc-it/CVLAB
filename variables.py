@@ -13,6 +13,7 @@ frame_data = {
         "idx": 0,
         "texture":None,
         "name": "",
+        "collection": "",
         "image_width" : None,
         "image_height": None
     },
