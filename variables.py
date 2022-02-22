@@ -5,7 +5,7 @@ frame_data = {
     "is_running": False,
     "img": "",
     "image_texture" : None,
-    "done": True,
+    "done": False,
     "predictions" : None,
     "imgs" : None,
     "selected_file" : {

@@ -90,9 +90,9 @@ def load_image_from_file(image_name, scale=1):
     orig_width = textureSurface.get_width()
     orig_height = textureSurface.get_height()
 
-    print("orig")
+    """ print("orig")
     print(orig_width)
-    print(orig_height)
+    print(orig_height) """
 
     #print(f"orig ar: {orig_width/orig_height}")
 
@@ -111,9 +111,9 @@ def load_image_from_file(image_name, scale=1):
     width = textureSurface.get_width()
     height = textureSurface.get_height()
 
-    print("scaled")
+    """ print("scaled")
     print(width)
-    print(height)
+    print(height) """
     # print(f"scaled ar: {width/height}")
     texture = gl.glGenTextures(1)
     gl.glBindTexture(gl.GL_TEXTURE_2D, texture)

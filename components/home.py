@@ -36,14 +36,14 @@ def header():
         if imgui.begin_tab_item("LAB")[0]:
 
             header_lab()
-            preview()
+            lab_content()
             imgui.end_tab_item()
         
         if imgui.begin_tab_item("Auto annotation")[0]:
             header_auto_annotation()
             inference_progress()
             if frame_data["done"]:
-                preview()
+                auto_ann_content()
             imgui.end_tab_item()
         
         if imgui.begin_tab_item("Settings")[0]:
@@ -119,15 +119,14 @@ def header_auto_annotation():
     
     imgui.next_column()
     
-    """ images_btn_title = "Choose images directory..."
+    images_btn_title = "Choose images directory..."
     if imgui.button(images_btn_title):
         imgui.open_popup(images_btn_title)
     images_path = file_selector(images_btn_title, True)
     if images_path is not None:
-        project.pa = images_path
+        frame_data["folder_path"] = images_path
     if frame_data["folder_path"] != "":
-        imgui.text(frame_data["folder_path"]) """
-    
+        imgui.text(frame_data["folder_path"])
     
     imgui.next_column()
     imgui.separator()
@@ -255,24 +254,27 @@ def inference_progress():
             imgui.same_line((frame_data["viewport"][0] / 2) - (img_data["width"] / 2))
             imgui.image(img_data["texture"], img_data["width"], img_data["height"])
 
-def preview():
-    _files_list()
-    _annotation_screen()
+def lab_content():
+    _files_list("annotate_preview")
+    _annotation_screen("annotate_preview")
 
+def auto_ann_content():
+    _files_list("inference_preview")
+    _annotation_screen("inference_preview", allow_edit=False)
 
-def _files_list():
+def _files_list(img_render_id):
     global frame_data
     project : Project = frame_data["project"]
-    img_data = frame_data["imgs_to_render"]["annotate_preview"]
+    img_data = frame_data["imgs_to_render"][img_render_id]
     
     # add 20 more (scrollbar)
     frame_data["x_offset"] = int(frame_data["viewport"][0] / 5) + 20
 
     imgui.begin_child(label="files_list", width=frame_data["x_offset"] - 20, height=-1, border=False, )
     
-    for i, k in enumerate(project.imgs):
+    for i, img_info in enumerate(project.get_image()):
 
-        img_info = project.imgs[k]
+        # img_info = project.imgs[k]
         name = img_info.name
         clicked, _ = imgui.selectable(
                     label=name, selected=(frame_data["selected_file"]["idx"] == i)
@@ -337,10 +339,10 @@ def _handle_bbox_resize(frame_data, labeling, img_info: ImageInfo):
         labeling["curr_bbox"].height = abs(labeling["curr_bbox"].ymax - labeling["curr_bbox"].ymin)
         img_info.set_changed(True)
 
-def _update_selected_bbox(labeling, project: Project, draw_list):
+def _refresh_bboxes(labeling, project: Project, draw_list, img_render_id):
     found = []
     global frame_data
-    img_data = frame_data["imgs_to_render"]["annotate_preview"]
+    img_data = frame_data["imgs_to_render"][img_render_id]
     img_info : ImageInfo = img_data["img_info"]
 
     for bbox in img_info.bboxes:
@@ -374,9 +376,9 @@ def _update_selected_bbox(labeling, project: Project, draw_list):
         frame_data["prev_cursor"] = glfw.ARROW_CURSOR
         glfw.set_cursor(frame_data["glfw"]["window"], glfw.create_standard_cursor(glfw.ARROW_CURSOR))
 
-def _annotation_screen():
+def _annotation_screen(img_render_id, allow_edit=True):
     global frame_data
-    img_data = frame_data["imgs_to_render"]["annotate_preview"]
+    img_data = frame_data["imgs_to_render"][img_render_id]
 
     img_info : ImageInfo = img_data["img_info"]
     labeling = frame_data["labeling"]
@@ -389,7 +391,7 @@ def _annotation_screen():
     draw_list = imgui.get_window_draw_list()
 
     # new bbox requested, was drawing a box and mouse is released => save bbox
-    if not imgui.is_mouse_down() and labeling["was_mouse_down"] and labeling["new_box_requested"]:
+    if allow_edit and not imgui.is_mouse_down() and labeling["was_mouse_down"] and labeling["new_box_requested"]:
         labeling["was_mouse_down"] = False
         labeling["new_box_requested"] = False
         labeling["curr_bbox"].width = abs(labeling["curr_bbox"].xmax - labeling["curr_bbox"].xmin)
@@ -400,7 +402,7 @@ def _annotation_screen():
             labeling["curr_bbox"] = None
         img_info.set_changed(True)
     # draw bbox following mouse coords
-    elif imgui.is_mouse_down() and labeling["new_box_requested"]:
+    elif allow_edit and imgui.is_mouse_down() and labeling["new_box_requested"]:
 
         labeling["was_mouse_down"] = True
         curr_bbox : BBox = labeling["curr_bbox"]
@@ -428,26 +430,27 @@ def _annotation_screen():
         img_info.set_changed(True)
     else: # draw bboxes and handle interaction
         
-        if img_data["img_info"] is not None:
-            _update_selected_bbox(labeling, project, draw_list)
-            
-        _handle_bbox_drag(frame_data, labeling,img_info)
-        _handle_bbox_resize(frame_data, labeling,img_info)
+        if img_info is not None:
+            _refresh_bboxes(labeling, project, draw_list, img_render_id)
         
-        # remove bbox shortcut
-        if imgui.is_key_pressed(glfw.KEY_BACKSPACE) and labeling["curr_bbox"] is not None:
-            img_info.bboxes.remove(labeling["curr_bbox"])
-            labeling["curr_bbox"] = None
-            img_info.set_changed(True)
+        if allow_edit:
+            _handle_bbox_drag(frame_data, labeling,img_info)
+            _handle_bbox_resize(frame_data, labeling,img_info)
+            
+            # remove bbox shortcut
+            if imgui.is_key_pressed(glfw.KEY_BACKSPACE) and labeling["curr_bbox"] is not None:
+                img_info.bboxes.remove(labeling["curr_bbox"])
+                labeling["curr_bbox"] = None
+                img_info.set_changed(True)
 
-        for i in project.labels.shortcuts:
-            if imgui.is_key_pressed(int(i)+glfw.KEY_0) :
-                frame_data["labeling"]["selected_label"] = project.labels.shortcuts[i].index
-                if labeling["curr_bbox"] is not None:
-                    labeling["curr_bbox"].label = project.labels.shortcuts[i].index
-                    img_info.set_changed(True)
-                break
+            for i in project.labels.shortcuts:
+                if imgui.is_key_pressed(int(i)+glfw.KEY_0) :
+                    frame_data["labeling"]["selected_label"] = project.labels.shortcuts[i].index
+                    if labeling["curr_bbox"] is not None:
+                        labeling["curr_bbox"].label = project.labels.shortcuts[i].index
+                        img_info.set_changed(True)
+                    break
 
-        if not imgui.is_mouse_down(0) and not imgui.is_mouse_down(1):
-            labeling["curr_bbox"] = None
+            if not imgui.is_mouse_down(0) and not imgui.is_mouse_down(1):
+                labeling["curr_bbox"] = None
     imgui.end_child()
