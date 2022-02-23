@@ -44,51 +44,71 @@ def auto_ann_content(frame_data):
 def header_auto_annotation(frame_data):
 
     project : Project = frame_data["project"]
+    
     if frame_data["is_running"]:
         imgui.internal.push_item_flag(imgui.internal.ITEM_DISABLED, True)
         imgui.push_style_var(imgui.STYLE_ALPHA, imgui.get_style().alpha *  0.5)
-    imgui.columns(2, "header_2", False)
+    
+    if imgui.button("New session"):
+        imgui.open_popup("Auto-annotation session")
+        imgui.set_next_window_size(700, 350)
+    if imgui.begin_popup_modal("Auto-annotation session", flags=imgui.WINDOW_NO_RESIZE )[0]:
+        
+        imgui.begin_child(label="auto_ann_content", height=250, border=False, )
+        imgui.columns(1, "header_2", False)
 
-    model_btn_title = "Choose model path..."
-    if imgui.button(model_btn_title):
-        imgui.open_popup("Choose model path...")
+        model_btn_title = "Choose model path..."
+        if imgui.button(model_btn_title):
+            imgui.open_popup("Choose model path...")
 
-    model_file = file_selector("Choose model path...", False)
-    if model_file is not None:
-        project.model_path = model_file
-    
-    if project.model_path != "":
-        imgui.text(project.model_path)
-    
-    imgui.next_column()
-    
-    images_btn_title = "Choose images directory..."
-    if imgui.button(images_btn_title):
-        imgui.open_popup(images_btn_title)
-    images_path = file_selector(images_btn_title, True)
-    if images_path is not None:
-        frame_data["folder_path"] = images_path
-    if frame_data["folder_path"] != "":
-        imgui.text(frame_data["folder_path"])
-    
-    imgui.next_column()
-    imgui.separator()
-    _, frame_data["threshold_conf"] = imgui.slider_float(
-                label="Conf. threshold",
-                value=frame_data["threshold_conf"],
-                min_value=0.0,
-                max_value=1.0,
-                format="%.2f",
-            )
-    imgui.next_column()
-    _, frame_data["threshold_iou"] = imgui.slider_float(
-                label="IoU threshold",
-                value=frame_data["threshold_iou"],
-                min_value=0.0,
-                max_value=1.0,
-                format="%.2f",
-            )
-    imgui.separator()
+        model_file = file_selector("Choose model path...", False)
+        if model_file is not None:
+            project.model_path = model_file
+        
+        
+        if project.model_path != "":
+            imgui.same_line()
+            imgui.text(project.model_path)
+        
+        images_btn_title = "Choose images directory..."
+        if imgui.button(images_btn_title):
+            imgui.open_popup(images_btn_title)
+        images_path = file_selector(images_btn_title, True)
+        if images_path is not None:
+            frame_data["folder_path"] = images_path
+ 
+        if frame_data["folder_path"] != "":
+            imgui.same_line()
+            imgui.text(frame_data["folder_path"])
+        
+        imgui.separator()
+        imgui.push_item_width(520)
+        _, frame_data["threshold_conf"] = imgui.slider_float(
+                    label="Confidence threshold",
+                    value=frame_data["threshold_conf"],
+                    min_value=0.0,
+                    max_value=1.0,
+                    format="%.2f",
+                )
+        
+        _, frame_data["threshold_iou"] = imgui.slider_float(
+                    label="IoU threshold",
+                    value=frame_data["threshold_iou"],
+                    min_value=0.0,
+                    max_value=1.0,
+                    format="%.2f",
+                )
+        imgui.pop_item_width()
+        imgui.separator()
+
+        imgui.end_child()
+        if imgui.button("Start annotation"):
+            imgui.close_current_popup()
+        imgui.same_line()
+        if imgui.button("Close"):
+            imgui.close_current_popup()
+        
+        imgui.end_popup()
     
     if frame_data["is_running"]:
         imgui.internal.pop_item_flag()

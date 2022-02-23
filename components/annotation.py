@@ -84,7 +84,7 @@ def _annotation_screen(frame_data, img_render_id, allow_edit=True):
 
 
 def _handle_bbox_drag(frame_data, labeling, img_info: ImageInfo):
-    if imgui.is_mouse_down() and labeling["curr_bbox"] is not None:
+    if labeling["curr_bbox"] is not None and img_info is not None and imgui.is_mouse_down():
 
         mouse_pos_x = frame_data["io"].mouse_pos[0]
         mouse_pos_y = frame_data["io"].mouse_pos[1]
