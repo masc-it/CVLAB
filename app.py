@@ -87,6 +87,7 @@ def main_glfw():
     frame_data["project"]  = project
 
     project.init_project()
+    
     #project.load_annotations()
     while not glfw.window_should_close(window):
         glfw.poll_events()
@@ -95,7 +96,9 @@ def main_glfw():
         custom_utils.load_images(frame_data["imgs_to_render"])
        
         imgui.new_frame()
+        
         on_frame()
+        # print(imgui.get_main_viewport().size)
         # print(imgui.get_mouse_pos())
         gl.glClearColor(1., 1., 1., 1)
         gl.glClear(gl.GL_COLOR_BUFFER_BIT)

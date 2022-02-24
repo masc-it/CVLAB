@@ -24,7 +24,7 @@ def header():
         
         if imgui.begin_tab_item("Auto annotation")[0]:
             #print(imgui.get_mouse_pos())
-            frame_data["y_offset"] = frame_data["y_offset_auto_ann"]
+            #frame_data["y_offset"] = imgui.get_main_viewport().size.y - imgui.get_content_region_available().y - 8 # frame_data["y_offset_auto_ann"]
             header_auto_annotation(frame_data)
             auto_ann_content(frame_data)
             imgui.end_tab_item()
