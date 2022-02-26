@@ -2,36 +2,57 @@
 from __future__ import annotations
 import os, glob, json,sys
 from copy import deepcopy
-from components.data import BBox, ImageInfo, LabelInfo, Labels
+from components.data import *
+from typing import Generator, Any
+
 sys.path.append("./")  # add ROOT to PATH
 import custom_utils
 
 class Project(object):
     
-    page_status = {}
+    page_status : dict = {}
 
-    def __init__(self, name, info_obj) -> None:
+    def __init__(self, name:str, info_obj: dict, project_path:str) -> None:
         self.name = name
         self.info_obj = info_obj
-        self.paths = info_obj["paths"]
+        self.collections_obj : dict = info_obj["collections"]
         self.model_path = info_obj["model_path"]
         self.labels_obj = info_obj["labels"]
-        self.imgs : dict[str,ImageInfo] = {}
+        self.project_path = project_path
+
+        self.imgs : dict[str, dict[str, ImageInfo]] = {}
+        self.collections : dict[str, CollectionInfo]= {}
         self.labels : Labels = self.load_labels()
+
+        self.experiments : dict[str, Experiment] = {}
+        self.load_experiments()
+        
 
     def __str__(self) -> str:
         return json.dumps(self.info_obj, indent=1)
     
     def init_project(self):
-        for p in self.paths:
-            data_path = p["data"]
-            ext_ann_path = p["ext_annotations"]
+        for p in self.collections_obj:
+            collection = self.collections_obj[p]
+            data_path = collection["data_path"]
+            collection_name = collection["name"]
+            collection_id = collection["name"].lower().replace(" ", "_")
+
+            coll_info = CollectionInfo(collection_name, collection_id, data_path)
+            self.collections[collection_id] = coll_info
+            self.imgs[collection_id] = {}
+            os.makedirs(data_path + "/annotations", exist_ok=True)
             # init imgs dict with imgs in data_path
             for f in glob.glob(data_path + "/*.jpg"):
-                name = os.path.basename(f).rsplit('.')[0]
-                self.imgs[name] = ImageInfo(name, f)
+                name_ext = os.path.basename(f).rsplit('.')
+                img_name = name_ext[0]
+                img_ext = name_ext[1]
+                self.imgs[collection_id][img_name] = ImageInfo(img_name, img_ext, coll_info)
         self.load_annotations()        
-        
+    
+    def get_collection(self, collection_id: str) -> CollectionInfo:
+        return self.collections[collection_id]
+    
     def import_yolo_annotations(self, data_path, yolo_annotations_path):
 
         for f in glob.glob(f"{yolo_annotations_path}/*.txt"):
@@ -52,21 +73,41 @@ class Project(object):
     
     def load_annotations(self, ):
 
-        for f in glob.glob(f"projects/{self.name}/annotations/*.json"):
-            name = os.path.basename(f).rsplit('.')[0]
-            with open(f, "r") as fp:
-                data = json.load(fp)
+        for collection in self.collections.values():
 
-            bboxes = list(map(lambda x: BBox(x["xmin"],x["ymin"],x["xmax"],x["ymax"], x["label"], x["conf"]), data["bboxes"]))
-            img_info = self.imgs[name]
-            
-            img_info.add_bboxes(bboxes)
-            self.imgs[name] = img_info
+            for img_name in self.imgs[collection.id]:
+                img_info : ImageInfo = self.imgs[collection.id][img_name]
+
+                annotation_file = f"{collection.path}/annotations/{img_name}.json"
+                if not os.path.exists(annotation_file):
+                    continue
+                with open(annotation_file, "r") as fp:
+                    data = json.load(fp)
+
+                bboxes = list(map(lambda x: BBox(x["xmin"],x["ymin"],x["xmax"],x["ymax"], x["label"], x["conf"]), data["bboxes"]))
+
+                img_info.add_bboxes(bboxes)
+    
+    @staticmethod
+    def load_img_annotations(img_info : ImageInfo):
+
+        img_name = img_info.name
         
+        collection = img_info.collection_info
 
-    def get_image(self):
-        for img in self.imgs:
-            yield self.imgs[img]
+        annotation_file = f"{collection.path}/annotations/{img_name}.json"
+        if not os.path.exists(annotation_file):
+            return
+        with open(annotation_file, "r") as fp:
+            data = json.load(fp)
+
+        bboxes = list(map(lambda x: BBox(x["xmin"],x["ymin"],x["xmax"],x["ymax"], x["label"], x["conf"]), data["bboxes"]))
+
+        img_info.add_bboxes(bboxes)
+    
+    def get_image(self, collection_id) -> Generator[ImageInfo, Any, Any]:
+        for img in self.imgs[collection_id]:
+            yield self.imgs[collection_id][img]
 
     def load_labels(self):
 
@@ -108,17 +149,28 @@ class Project(object):
 
     def save_annotations(self,):
         
-        for img_info in self.imgs.values():
-            
-            if img_info.is_changed:
-                with open(f"projects/{self.name}/annotations/{img_info.name}.json", "w") as fp:
-                    scaled_bboxes = []
-                    for bbox in img_info.bboxes:
-                        scaled_bboxes.append(bbox.scale((img_info.w, img_info.h), (img_info.orig_w, img_info.orig_h)).as_obj())
-                    data = {"img_path": img_info.path, "bboxes": scaled_bboxes}
-                    json.dump(data, fp, indent=1 )
-                img_info.set_changed(False)
+        for collection in self.collections.values():
+            for img_name in self.imgs[collection.id]:
+                img_info : ImageInfo = self.imgs[collection.id][img_name]
+                if img_info.is_changed:
+                    with open(f"{collection.path}/annotations/{img_name}.json", "w") as fp:
+                        scaled_bboxes = []
+                        for bbox in img_info.bboxes:
+                            scaled_bboxes.append(bbox.scale((img_info.w, img_info.h), (img_info.orig_w, img_info.orig_h)).as_obj())
+                        data = {"collection": collection.id, "bboxes": scaled_bboxes}
+                        json.dump(data, fp, indent=1 )
+                    img_info.set_changed(False)
 
+    def load_experiments(self):
+        
+        with open(f"{self.project_path}/experiments.json", "r") as fp:
+            exp_obj =json.load(fp)
+        
+        for exp_key in exp_obj:
+            exp = Experiment("", exp_obj[exp_key], exp_key) 
+            self.experiments[exp_key] = exp
+        
+        return self.experiments
 
 def load_projects():
 
@@ -127,7 +179,7 @@ def load_projects():
         
         with open(p + "/info.json", "r") as fp:
             info_obj = json.load(fp)
-        projects.append(Project(os.path.basename(p), info_obj))
+        projects.append(Project(os.path.basename(p), info_obj, p))
     
     return projects
 

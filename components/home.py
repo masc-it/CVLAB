@@ -2,31 +2,13 @@ import imgui
 from components.data import BBox, ImageInfo, Labels
 from variables import frame_data
 import threading
-from yolov5 import detect
+
 from .file_selector import file_selector
-import glob, os
-import custom_utils
+from .auto_annotation import header_auto_annotation, auto_ann_content
 import glfw
 from copy import deepcopy
 from .projects import Project
-
-def start_inference(frame_data):
-    
-    predictions = detect.run(weights=frame_data["model_path"], imgsz=[1280, 1280], conf_thres=frame_data["threshold_conf"], iou_thres=frame_data["threshold_iou"], save_conf=True,
-                exist_ok=True, save_txt=True, source=frame_data["folder_path"], project=frame_data["folder_path"] + "/exp", name="predictions",)
-    
-    frame_data["imgs_to_render"]["inference_preview"]["scale"] = 1
-    for _, (_, img)  in enumerate(predictions):
-        # print(img)
-        frame_data["imgs_to_render"]["inference_preview"]["name"] = img
-        # frame_data["img"] = img
-        frame_data["progress"] += 0.1
-        if not frame_data["is_running"]:
-            break
-        
-    frame_data["is_running"] = False
-    frame_data["progress"] = 0
-    frame_data["done"] = True
+from . import annotation
 
 def header():
     global frame_data
@@ -35,15 +17,16 @@ def header():
 
         if imgui.begin_tab_item("LAB")[0]:
 
+            frame_data["y_offset"] = frame_data["y_offset_lab"]
             header_lab()
             lab_content()
             imgui.end_tab_item()
         
         if imgui.begin_tab_item("Auto annotation")[0]:
-            header_auto_annotation()
-            inference_progress()
-            if frame_data["done"]:
-                auto_ann_content()
+            #print(imgui.get_mouse_pos())
+            #frame_data["y_offset"] = imgui.get_main_viewport().size.y - imgui.get_content_region_available().y - 8 # frame_data["y_offset_auto_ann"]
+            header_auto_annotation(frame_data)
+            auto_ann_content(frame_data)
             imgui.end_tab_item()
         
         if imgui.begin_tab_item("Settings")[0]:
@@ -97,94 +80,6 @@ def header_lab():
         frame_data["scale_changed"] = True
 
 
-def header_auto_annotation():
-    global frame_data
-
-    project : Project = frame_data["project"]
-    if frame_data["is_running"]:
-        imgui.internal.push_item_flag(imgui.internal.ITEM_DISABLED, True)
-        imgui.push_style_var(imgui.STYLE_ALPHA, imgui.get_style().alpha *  0.5)
-    imgui.columns(2, "header_2", False)
-
-    model_btn_title = "Choose model path..."
-    if imgui.button(model_btn_title):
-        imgui.open_popup("Choose model path...")
-
-    model_file = file_selector("Choose model path...", False)
-    if model_file is not None:
-        project.model_path = model_file
-    
-    if project.model_path != "":
-        imgui.text(project.model_path)
-    
-    imgui.next_column()
-    
-    images_btn_title = "Choose images directory..."
-    if imgui.button(images_btn_title):
-        imgui.open_popup(images_btn_title)
-    images_path = file_selector(images_btn_title, True)
-    if images_path is not None:
-        frame_data["folder_path"] = images_path
-    if frame_data["folder_path"] != "":
-        imgui.text(frame_data["folder_path"])
-    
-    imgui.next_column()
-    imgui.separator()
-    _, frame_data["threshold_conf"] = imgui.slider_float(
-                label="Conf. threshold",
-                value=frame_data["threshold_conf"],
-                min_value=0.0,
-                max_value=1.0,
-                format="%.2f",
-            )
-    imgui.next_column()
-    _, frame_data["threshold_iou"] = imgui.slider_float(
-                label="IoU threshold",
-                value=frame_data["threshold_iou"],
-                min_value=0.0,
-                max_value=1.0,
-                format="%.2f",
-            )
-    imgui.separator()
-    
-    if frame_data["is_running"]:
-        imgui.internal.pop_item_flag()
-        imgui.pop_style_var()
-
-    imgui.columns(1)
-
-    if frame_data["is_running"]:
-        start_clicked = imgui.button("Stop analysis")
-    else:
-        start_clicked = imgui.button("Start analysis")
-
-    if start_clicked:
-
-        if not frame_data["is_running"]:
-            frame_data["is_running"] = True
-            frame_data["progress"] = 0
-            frame_data["done"] = False
-            frame_data["predictions"] = {}
-
-            imgs = glob.glob(frame_data["folder_path"] + "/*.jpg")
-            frame_data["num_imgs"] = len(imgs)
-
-            thread = threading.Thread(target=start_inference, args=(frame_data, ))
-            thread.start()
-        else:
-            frame_data["is_running"] = False
-
-    imgui.same_line()
-    scale_changed, frame_data["img_scale"] = imgui.slider_float(
-                label="Zoom",
-                value=frame_data["img_scale"],
-                min_value=0.5,
-                max_value=2.0,
-                format="%.1f",
-            )
-    if scale_changed:
-        frame_data["scale_changed"] = True
-
 def _open_labels_popup(labels : Labels):
     
     imgui.set_next_window_size(700, 350)
@@ -236,34 +131,14 @@ def _open_labels_popup(labels : Labels):
             imgui.close_current_popup()
         imgui.end_popup()
 
-def inference_progress():
-    global frame_data
-    img_data = frame_data["imgs_to_render"]["inference_preview"]
-    if frame_data["is_running"]:
-        
-        imgui.columns(3,"progr", False)
-        imgui.next_column()
-        imgui.progress_bar(
-            fraction=frame_data["progress"] * 10 / frame_data["num_imgs"] , 
-            size=(-1, 0.0),
-            overlay=f"{int(frame_data['progress'] * 10)}/{frame_data['num_imgs']}"
-        )
-        imgui.columns(1)
-        imgui.spacing()
-        if img_data["texture"] is not None:
-            imgui.same_line((frame_data["viewport"][0] / 2) - (img_data["width"] / 2))
-            imgui.image(img_data["texture"], img_data["width"], img_data["height"])
 
 def lab_content():
-    _files_list("annotate_preview")
-    _annotation_screen("annotate_preview")
-
-def auto_ann_content():
-    _files_list("inference_preview")
-    _annotation_screen("inference_preview", allow_edit=False)
-
-def _files_list(img_render_id):
     global frame_data
+    _files_list(frame_data, "annotate_preview")
+    annotation._annotation_screen(frame_data, "annotate_preview")
+
+
+def _files_list(frame_data, img_render_id):
     project : Project = frame_data["project"]
     img_data = frame_data["imgs_to_render"][img_render_id]
     
@@ -272,185 +147,39 @@ def _files_list(img_render_id):
 
     imgui.begin_child(label="files_list", width=frame_data["x_offset"] - 20, height=-1, border=False, )
     
-    for i, img_info in enumerate(project.get_image()):
+    for collection_id in project.collections:
 
-        # img_info = project.imgs[k]
-        name = img_info.name
-        clicked, _ = imgui.selectable(
-                    label=name, selected=(frame_data["selected_file"]["idx"] == i)
-                )
-        
-        if clicked or frame_data["scale_changed"]:
-            
-            img_data["scale"] = frame_data["img_scale"]
-            if clicked:
-                frame_data["scale_changed"] = True
-                base_p = name
-                img_data["name"] = name
+        if imgui.tree_node(project.collections[collection_id].name):
+            for i, img_info in enumerate(project.get_image(collection_id)):
+
+                # img_info = project.imgs[k]
+                name = img_info.name
+                clicked, _ = imgui.selectable(
+                            label=name, selected=(frame_data["selected_file"]["idx"] == i and frame_data["selected_file"]["collection"] == collection_id)
+                        )
                 
-                img_data["img_info"] = img_info
+                if clicked or frame_data["scale_changed"]:
+                    
+                    img_data["scale"] = frame_data["img_scale"]
+                    if clicked:
+                        frame_data["scale_changed"] = True
+                        base_p = name
+                        img_data["name"] = name
+                        
+                        img_data["img_info"] = img_info
+                        frame_data["selected_file"]["collection"] = collection_id
+                        frame_data["selected_file"]["idx"] = i
+                        frame_data["selected_file"]["name"] = base_p
+                    if frame_data["scale_changed"]:
+                        frame_data["scale_changed"] = False
+                        img_data["img_info"].change_scale(frame_data["img_scale"])
+                        
+                    if frame_data["imgs_info"].get(frame_data["selected_file"]["name"]) is None:
+                        frame_data["imgs_info"][frame_data["selected_file"]["name"]] = {}
+                        frame_data["imgs_info"][frame_data["selected_file"]["name"]]["orig_size"] = [img_data["img_info"].w, img_data["img_info"].h]
 
-                frame_data["selected_file"]["idx"] = i
-                frame_data["selected_file"]["name"] = base_p
-            if frame_data["scale_changed"]:
-                frame_data["scale_changed"] = False
-                img_data["img_info"].change_scale(frame_data["img_scale"])
-                
-            if frame_data["imgs_info"].get(frame_data["selected_file"]["name"]) is None:
-                frame_data["imgs_info"][frame_data["selected_file"]["name"]] = {}
-                frame_data["imgs_info"][frame_data["selected_file"]["name"]]["orig_size"] = [img_data["img_info"].w, img_data["img_info"].h]
-
-            frame_data["imgs_info"][frame_data["selected_file"]["name"]]["scaled_size"] = [img_data["img_info"].scaled_w, img_data["img_info"].scaled_h]
-                     
-
+                    frame_data["imgs_info"][frame_data["selected_file"]["name"]]["scaled_size"] = [img_data["img_info"].scaled_w, img_data["img_info"].scaled_h]
+            imgui.tree_pop()
+                        
     imgui.end_child()
     imgui.same_line(position=frame_data["x_offset"])
-
-def _handle_bbox_drag(frame_data, labeling, img_info: ImageInfo):
-    if imgui.is_mouse_down() and labeling["curr_bbox"] is not None:
-
-        mouse_pos_x = frame_data["io"].mouse_pos[0]
-        mouse_pos_y = frame_data["io"].mouse_pos[1]
-        if not labeling["was_drawing"]:
-            labeling["was_drawing"] = True
-            # save relative mouse offset
-            labeling["x_offset"] = labeling["curr_bbox"].width - ( labeling["curr_bbox"].xmax + frame_data["x_offset"] - mouse_pos_x  )  
-            labeling["y_offset"] = labeling["curr_bbox"].height - (labeling["curr_bbox"].ymax - mouse_pos_y + frame_data["y_offset"] - imgui.get_scroll_y()) 
-
-        mouse_pos_x -= labeling["x_offset"]
-        mouse_pos_y -= labeling["y_offset"]
-
-        labeling["curr_bbox"].xmin = mouse_pos_x - frame_data["x_offset"] # - labeling["curr_bbox"]["width"]/2 # frame_data["io"].mouse_pos[0] ) - labeling["curr_bbox"]["x_min"] ) #  
-        labeling["curr_bbox"].ymin = mouse_pos_y + imgui.get_scroll_y() - frame_data["y_offset"]  #frame_data["io"].mouse_pos[1] + imgui.get_scroll_y() - frame_data["y_offset"] - labeling["curr_bbox"]["height"]/2 # -(labeling["curr_bbox"]["y_max"] - frame_data["io"].mouse_pos[1] )  #
-        labeling["curr_bbox"].xmax = labeling["curr_bbox"].xmin + labeling["curr_bbox"].width
-        labeling["curr_bbox"].ymax = labeling["curr_bbox"].ymin + labeling["curr_bbox"].height
-
-        img_info.set_changed(True)
-    else:
-        labeling["was_drawing"] = False
-
-
-def _handle_bbox_resize(frame_data, labeling, img_info: ImageInfo):
-    if imgui.is_mouse_down(1) and labeling["curr_bbox"] is not None:
-
-        labeling["curr_bbox"].xmax = frame_data["io"].mouse_pos[0] - frame_data["x_offset"]
-        labeling["curr_bbox"].ymax = frame_data["io"].mouse_pos[1] + imgui.get_scroll_y() - frame_data["y_offset"]
-        labeling["curr_bbox"].width = abs(labeling["curr_bbox"].xmax - labeling["curr_bbox"].xmin)
-        labeling["curr_bbox"].height = abs(labeling["curr_bbox"].ymax - labeling["curr_bbox"].ymin)
-        img_info.set_changed(True)
-
-def _refresh_bboxes(labeling, project: Project, draw_list, img_render_id):
-    found = []
-    global frame_data
-    img_data = frame_data["imgs_to_render"][img_render_id]
-    img_info : ImageInfo = img_data["img_info"]
-
-    for bbox in img_info.bboxes:
-        
-        draw_list.add_rect(
-            bbox.xmin + frame_data["x_offset"], 
-            bbox.ymin - imgui.get_scroll_y() +  frame_data["y_offset"], 
-            bbox.xmax + frame_data["x_offset"], 
-            bbox.ymax - imgui.get_scroll_y() +  frame_data["y_offset"], 
-            imgui.get_color_u32_rgba(*project.labels.labels_map[bbox.label].rgb, 255),
-            thickness=1
-        )
-
-        if imgui.get_mouse_pos()[0] >= bbox.xmin + frame_data["x_offset"]  and\
-            imgui.get_mouse_pos()[0] <= bbox.xmax + frame_data["x_offset"]  and\
-            imgui.get_mouse_pos()[1] >= bbox.ymin - imgui.get_scroll_y() +  frame_data["y_offset"]  and\
-            imgui.get_mouse_pos()[1] <=  bbox.ymax - imgui.get_scroll_y() +  frame_data["y_offset"] :
-            
-            if frame_data["prev_cursor"] != glfw.HAND_CURSOR:
-                glfw.set_cursor(frame_data["glfw"]["window"], glfw.create_standard_cursor(glfw.HAND_CURSOR))
-                frame_data["prev_cursor"] = glfw.HAND_CURSOR
-                #print("created")
-            found.append(bbox)
-            
-    # take the closest window. Needed for nested bboxes.
-    ordered_found = sorted(found, key=lambda x: abs(imgui.get_mouse_pos()[0] - x.xmin))
-
-    if len(ordered_found) > 0 and labeling["curr_bbox"] is None:
-        labeling["curr_bbox"] = ordered_found[0]
-    if frame_data["prev_cursor"] != glfw.ARROW_CURSOR and found == [] and not imgui.is_mouse_down(1):
-        frame_data["prev_cursor"] = glfw.ARROW_CURSOR
-        glfw.set_cursor(frame_data["glfw"]["window"], glfw.create_standard_cursor(glfw.ARROW_CURSOR))
-
-def _annotation_screen(img_render_id, allow_edit=True):
-    global frame_data
-    img_data = frame_data["imgs_to_render"][img_render_id]
-
-    img_info : ImageInfo = img_data["img_info"]
-    labeling = frame_data["labeling"]
-    project : Project = frame_data["project"]
-
-    imgui.begin_child(label="img_preview", width=0, height=0, border=False,)
-    if img_data["texture"] is not None:
-        imgui.image(img_data["texture"], img_data["scaled_width"], img_data["scaled_height"])
-    
-    draw_list = imgui.get_window_draw_list()
-
-    # new bbox requested, was drawing a box and mouse is released => save bbox
-    if allow_edit and not imgui.is_mouse_down() and labeling["was_mouse_down"] and labeling["new_box_requested"]:
-        labeling["was_mouse_down"] = False
-        labeling["new_box_requested"] = False
-        labeling["curr_bbox"].width = abs(labeling["curr_bbox"].xmax - labeling["curr_bbox"].xmin)
-        labeling["curr_bbox"].height = abs(labeling["curr_bbox"].ymax - labeling["curr_bbox"].ymin)
-
-        img_info.bboxes.append(labeling["curr_bbox"])
-        if labeling["curr_bbox"] is not None:
-            labeling["curr_bbox"] = None
-        img_info.set_changed(True)
-    # draw bbox following mouse coords
-    elif allow_edit and imgui.is_mouse_down() and labeling["new_box_requested"]:
-
-        labeling["was_mouse_down"] = True
-        curr_bbox : BBox = labeling["curr_bbox"]
-        if curr_bbox is None:
-            # save coords relative to the image
-            curr_bbox = BBox(
-                frame_data["io"].mouse_pos[0] - frame_data["x_offset"],
-                frame_data["io"].mouse_pos[1] + imgui.get_scroll_y() - frame_data["y_offset"],
-                0,
-                0,
-                frame_data["labeling"]["selected_label"]
-            )
-            labeling["curr_bbox"] = curr_bbox
-        
-        curr_bbox.xmax = frame_data["io"].mouse_pos[0] - frame_data["x_offset"]
-        curr_bbox.ymax = frame_data["io"].mouse_pos[1] + imgui.get_scroll_y() - frame_data["y_offset"]
-        # convert image coords to screen coords
-        draw_list.add_rect(
-            curr_bbox.xmin + frame_data["x_offset"], 
-            curr_bbox.ymin - imgui.get_scroll_y() +  frame_data["y_offset"], 
-            curr_bbox.xmax + frame_data["x_offset"], 
-            curr_bbox.ymax - imgui.get_scroll_y() +  frame_data["y_offset"], 
-            imgui.get_color_u32_rgba(*project.labels.labels_map[curr_bbox.label].rgb, 255), 
-            thickness=1)
-        img_info.set_changed(True)
-    else: # draw bboxes and handle interaction
-        
-        if img_info is not None:
-            _refresh_bboxes(labeling, project, draw_list, img_render_id)
-        
-        if allow_edit:
-            _handle_bbox_drag(frame_data, labeling,img_info)
-            _handle_bbox_resize(frame_data, labeling,img_info)
-            
-            # remove bbox shortcut
-            if imgui.is_key_pressed(glfw.KEY_BACKSPACE) and labeling["curr_bbox"] is not None:
-                img_info.bboxes.remove(labeling["curr_bbox"])
-                labeling["curr_bbox"] = None
-                img_info.set_changed(True)
-
-            for i in project.labels.shortcuts:
-                if imgui.is_key_pressed(int(i)+glfw.KEY_0) :
-                    frame_data["labeling"]["selected_label"] = project.labels.shortcuts[i].index
-                    if labeling["curr_bbox"] is not None:
-                        labeling["curr_bbox"].label = project.labels.shortcuts[i].index
-                        img_info.set_changed(True)
-                    break
-
-            if not imgui.is_mouse_down(0) and not imgui.is_mouse_down(1):
-                labeling["curr_bbox"] = None
-    imgui.end_child()

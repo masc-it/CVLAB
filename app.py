@@ -62,6 +62,11 @@ def main_glfw():
             print("Could not initialize Window")
             exit(1)
         return window
+    
+    imgui.create_context()
+    io = imgui.get_io()
+    io.config_flags |= imgui.CONFIG_DOCKING_ENABLE
+
     window = glfw_init()
     impl = GlfwRenderer(window)
     io = impl.io
@@ -87,6 +92,7 @@ def main_glfw():
     frame_data["project"]  = project
 
     project.init_project()
+    
     #project.load_annotations()
     while not glfw.window_should_close(window):
         glfw.poll_events()
@@ -95,7 +101,9 @@ def main_glfw():
         custom_utils.load_images(frame_data["imgs_to_render"])
        
         imgui.new_frame()
+        #docking_space('docking_space')
         on_frame()
+        # print(imgui.get_main_viewport().size)
         # print(imgui.get_mouse_pos())
         gl.glClearColor(1., 1., 1., 1)
         gl.glClear(gl.GL_COLOR_BUFFER_BIT)
@@ -125,14 +133,14 @@ def on_frame():
         imgui.end_main_menu_bar()
     viewport = imgui.get_main_viewport().size
     frame_data["viewport"] = viewport
-    imgui.set_next_window_size(viewport[0], viewport[1]-25, condition=imgui.ALWAYS)
-    imgui.set_next_window_position(0, 25, condition=imgui.ALWAYS)
+    #imgui.set_next_window_size(viewport[0], viewport[1]-25, condition=imgui.ALWAYS)
+    #imgui.set_next_window_position(0, 25, condition=imgui.ALWAYS)
     flags = ( imgui.WINDOW_NO_MOVE 
         | imgui.WINDOW_NO_TITLE_BAR
         |   imgui.WINDOW_NO_COLLAPSE
-        | imgui.WINDOW_NO_RESIZE
-        
+        | imgui.WINDOW_NO_RESIZE 
     )
+    #flags = imgui.WINDOW_NO_COLLAPSE
     
     imgui.begin("Custom window", None, flags=flags)
     
@@ -141,6 +149,37 @@ def on_frame():
     imgui.end()
 
 
+def docking_space(name: str):
+    flags = (imgui.WINDOW_MENU_BAR 
+        | imgui.WINDOW_NO_DOCKING 
+        # | imgui.WINDOW_NO_BACKGROUND
+        | imgui.WINDOW_NO_TITLE_BAR
+        | imgui.WINDOW_NO_COLLAPSE
+        | imgui.WINDOW_NO_RESIZE
+        | imgui.WINDOW_NO_MOVE
+        | imgui.WINDOW_NO_BRING_TO_FRONT_ON_FOCUS
+        | imgui.WINDOW_NO_NAV_FOCUS
+    )
+
+    viewport = imgui.get_main_viewport()
+    x, y = viewport.pos
+    w, h = viewport.size
+    imgui.set_next_window_position(x, y)
+    imgui.set_next_window_size(w, h)
+
+    imgui.push_style_var(imgui.STYLE_WINDOW_BORDERSIZE, 0.0)
+    imgui.push_style_var(imgui.STYLE_WINDOW_ROUNDING, 0.0)
+
+    imgui.push_style_var(imgui.STYLE_WINDOW_PADDING, (0, 0))
+    imgui.begin(name, None, flags)
+    imgui.pop_style_var()
+    imgui.pop_style_var(2)
+
+    # DockSpace
+    dockspace_id = imgui.get_id(name)
+    imgui.dockspace(dockspace_id, (0, 0), imgui.DOCKNODE_PASSTHRU_CENTRAL_NODE)
+
+    imgui.end()
 
 if __name__ == "__main__":
     imgui.create_context()

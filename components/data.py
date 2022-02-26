@@ -52,9 +52,10 @@ class ImageInfo(object):
     prev_scale = 0.0
     scale = 1.0
     is_changed = False
-    def __init__(self, name, path) -> None:
+    def __init__(self, name, extension, collection_info: CollectionInfo) -> None:
         self.name = name
-        self.path = path
+        self.collection_info = collection_info
+        self.path = collection_info.path + f"/{self.name}.{extension}"
         self.bboxes = []
         self._set_size()
     
@@ -108,7 +109,7 @@ class ImageInfo(object):
         self.is_changed = value
 
 class LabelInfo(object):
-    def __init__(self, index : int, label : str, rgb : list[float], shortcut: str) -> None:
+    def __init__(self, index : str, label : str, rgb : list[float], shortcut: str) -> None:
         self.index = index
         self.label = label
         self.rgb = rgb
@@ -137,5 +138,34 @@ class Labels(object):
     def __getitem__(self, i):
         return self.labels[i]
     
+
+class CollectionInfo(object):
+
+    def __init__(self, name: str, id: str, path: str) -> None:
+        self.name = name
+        self.id = id
+        self.path = path
+
+class Experiment(object):
+
+    i = 0
+    def __init__(self, model_path:str, data_path:str, exp_name: str) -> None:
+        
+        self.exp_name = exp_name
+        self.model_path = model_path
+        self.data_path = data_path
+        self.imgs : list[ImageInfo] = []
+        self._load_images()
     
+    def add_image(self, img_info: ImageInfo):
+        self.imgs.append(img_info)
     
+    def _load_images(self):
+        import glob, os
+        from .projects import Project
+        coll_info : CollectionInfo = CollectionInfo(self.exp_name, self.exp_name, self.data_path)
+        for img in glob.glob(f"{self.data_path}/*.*"):
+            name_ext = os.path.basename(img).rsplit('.')
+            img_info = ImageInfo(name_ext[0], name_ext[1], coll_info)
+            self.imgs.append(img_info)
+            Project.load_img_annotations(img_info)
