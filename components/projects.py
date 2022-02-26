@@ -3,13 +3,14 @@ from __future__ import annotations
 import os, glob, json,sys
 from copy import deepcopy
 from components.data import *
+from typing import Generator, Any
 
 sys.path.append("./")  # add ROOT to PATH
 import custom_utils
 
 class Project(object):
     
-    page_status = {}
+    page_status : dict = {}
 
     def __init__(self, name:str, info_obj: dict, project_path:str) -> None:
         self.name = name
@@ -86,6 +87,8 @@ class Project(object):
                 bboxes = list(map(lambda x: BBox(x["xmin"],x["ymin"],x["xmax"],x["ymax"], x["label"], x["conf"]), data["bboxes"]))
 
                 img_info.add_bboxes(bboxes)
+    
+    @staticmethod
     def load_img_annotations(img_info : ImageInfo):
 
         img_name = img_info.name
@@ -102,7 +105,7 @@ class Project(object):
 
         img_info.add_bboxes(bboxes)
     
-    def get_image(self, collection_id) -> ImageInfo:
+    def get_image(self, collection_id) -> Generator[ImageInfo, Any, Any]:
         for img in self.imgs[collection_id]:
             yield self.imgs[collection_id][img]
 

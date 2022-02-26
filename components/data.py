@@ -109,7 +109,7 @@ class ImageInfo(object):
         self.is_changed = value
 
 class LabelInfo(object):
-    def __init__(self, index : int, label : str, rgb : list[float], shortcut: str) -> None:
+    def __init__(self, index : str, label : str, rgb : list[float], shortcut: str) -> None:
         self.index = index
         self.label = label
         self.rgb = rgb

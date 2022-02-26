@@ -13,13 +13,13 @@ def _annotation_screen(frame_data, img_render_id, allow_edit=True):
     """ print( "pos: " + str(imgui.get_mouse_pos()))
     print("vp: " + str(imgui.get_main_viewport().size))
     print( "avail: " + str(imgui.get_content_region_available())) """
+    
     imgui.begin_child(label="img_preview", width=0, height=0, border=False,)
     frame_data["y_offset"] = imgui.get_main_viewport().size.y - imgui.get_content_region_available().y - 8 # frame_data["y_offset_auto_ann"]
     if img_data["texture"] is not None:
-        
         imgui.image(img_data["texture"], img_data["scaled_width"], img_data["scaled_height"])
-    draw_list = imgui.get_window_draw_list()
-
+    draw_list : imgui._DrawList = imgui.get_window_draw_list()
+    
     # new bbox requested, was drawing a box and mouse is released => save bbox
     if allow_edit and not imgui.is_mouse_down() and labeling["was_mouse_down"] and labeling["new_box_requested"]:
         labeling["was_mouse_down"] = False
