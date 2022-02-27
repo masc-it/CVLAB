@@ -4,7 +4,7 @@ from variables import frame_data
 import threading
 
 from .file_selector import file_selector
-from .auto_annotation import header_auto_annotation, auto_ann_content
+from .auto_annotation import header_auto_annotation, auto_ann_content, inference_progress
 import glfw
 from copy import deepcopy
 from .projects import Project
@@ -25,8 +25,10 @@ def header():
         if imgui.begin_tab_item("Auto annotation")[0]:
             #print(imgui.get_mouse_pos())
             #frame_data["y_offset"] = imgui.get_main_viewport().size.y - imgui.get_content_region_available().y - 8 # frame_data["y_offset_auto_ann"]
+            
             header_auto_annotation(frame_data)
             auto_ann_content(frame_data)
+            
             imgui.end_tab_item()
         
         if imgui.begin_tab_item("Settings")[0]:
@@ -66,7 +68,8 @@ def header_lab():
 
     if labels_click:
         imgui.open_popup("Labels")
-    _open_labels_popup(project.labels)
+        frame_data["is_dialog_open"] = True
+    _open_labels_popup(frame_data, project.labels)
 
     imgui.same_line()
     scale_changed, frame_data["img_scale"] = imgui.slider_float(
@@ -80,7 +83,7 @@ def header_lab():
         frame_data["scale_changed"] = True
 
 
-def _open_labels_popup(labels : Labels):
+def _open_labels_popup(frame_data, labels : Labels):
     
     imgui.set_next_window_size(700, 350)
     if imgui.begin_popup_modal("Labels", flags=imgui.WINDOW_NO_RESIZE )[0]:
@@ -129,6 +132,7 @@ def _open_labels_popup(labels : Labels):
 
         if imgui.button("Close"):
             imgui.close_current_popup()
+            frame_data["is_dialog_open"] = False
         imgui.end_popup()
 
 

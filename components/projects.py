@@ -167,11 +167,23 @@ class Project(object):
             exp_obj =json.load(fp)
         
         for exp_key in exp_obj:
-            exp = Experiment("", exp_obj[exp_key], exp_key) 
+            exp = Experiment(exp_obj[exp_key]["model_path"], exp_obj[exp_key]["data_path"], exp_key) 
             self.experiments[exp_key] = exp
         
         return self.experiments
 
+    def save_experiment(self, exp: Experiment):
+        self.experiments[exp.exp_name] = exp
+        with open(f"{self.project_path}/experiments.json", "r") as fp:
+            exp_obj = json.load(fp)
+        exp_obj[exp.exp_name] = {
+            "data_path" : exp.data_path,
+            "model_path": exp.model_path
+        }
+
+        with open(f"{self.project_path}/experiments.json", "w") as fp:
+            json.dump(exp_obj, fp, indent=1)
+        
 def load_projects():
 
     projects = []

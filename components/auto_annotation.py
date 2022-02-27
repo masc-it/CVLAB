@@ -8,33 +8,40 @@ from . import annotation
 from .file_selector import file_selector
 
 
-def start_inference(frame_data):
+def start_inference(frame_data, exp: Experiment):
     
-    predictions = detect.run(weights=frame_data["model_path"], imgsz=[1280, 1280], conf_thres=frame_data["threshold_conf"], iou_thres=frame_data["threshold_iou"], save_conf=True,
-                exist_ok=True, save_txt=True, source=frame_data["folder_path"], project=frame_data["folder_path"] + "/exp", name="predictions",)
+    predictions = detect.run(weights=exp.model_path, imgsz=[1280, 1280], conf_thres=exp.threshold_conf, iou_thres=exp.threshold_iou, save_conf=True,
+                exist_ok=True, save_txt=True, source=exp.data_path, project=exp.data_path + "/exp", name="predictions",)
     
     frame_data["imgs_to_render"]["inference_preview"]["scale"] = 1
 
-    exp : Experiment = frame_data["experiment"]
-
-    coll_info : CollectionInfo = CollectionInfo(exp.exp_name, exp.exp_name, exp.data_path)
-
-    for _, (bbox, img)  in enumerate(predictions):
-
-        bbox : BBox = BBox(bbox["xmin"], bbox["ymin"], bbox["xmax"], bbox["ymax"], bbox["class"], bbox["conf"])
-        name_ext = os.path.basename(img).rsplit('.')
-        img_info = ImageInfo(name_ext[0], name_ext[1], coll_info)
-        img_info.add_bbox(bbox)
-        # print(img)
-        frame_data["imgs_to_render"]["inference_preview"]["name"] = img
-        # frame_data["img"] = img
-        frame_data["progress"] += 0.1
-        if not frame_data["is_running"]:
-            break
+    for _, (bboxes, img)  in enumerate(predictions):
         
-    frame_data["is_running"] = False
-    frame_data["progress"] = 0
+        frame_data["imgs_to_render"]["inference_preview"]["name"] = img
+        name_ext = os.path.basename(img).rsplit('.')
+        img_info = ImageInfo(name_ext[0], name_ext[1], CollectionInfo(exp.exp_name, exp.exp_name, exp.data_path ))
+        
+        exp.imgs.append(img_info)
+        for bbox in bboxes:
+            bbox : BBox = BBox(bbox["xmin"], bbox["ymin"], bbox["xmax"], bbox["ymax"], bbox["class"], bbox["conf"])
+            img_info.add_bbox(bbox)
+        frame_data["imgs_to_render"]["inference_preview"]["img_info"] = img_info
+        # print(img)
+
+        # frame_data["img"] = img
+        exp.progress += 0.1
+        if not exp.is_running:
+            
+            break
+    
+    frame_data["imgs_to_render"]["inference_preview"]["img_info"] = None
+    frame_data["imgs_to_render"]["inference_preview"]["texture"] = None
+    exp.is_running = False
+    exp.progress = 0
     frame_data["done"] = True
+    frame_data["is_running"] = False
+    
+
 
 def auto_ann_content(frame_data):
     _files_list(frame_data, "inference_preview")
@@ -45,13 +52,16 @@ def header_auto_annotation(frame_data):
 
     project : Project = frame_data["project"]
     
-    if frame_data["is_running"]:
+    """ if frame_data["is_running"]:
         imgui.internal.push_item_flag(imgui.internal.ITEM_DISABLED, True)
-        imgui.push_style_var(imgui.STYLE_ALPHA, imgui.get_style().alpha *  0.5)
+        imgui.push_style_var(imgui.STYLE_ALPHA, imgui.get_style().alpha *  0.5) """
     
     if imgui.button("New session"):
         imgui.open_popup("Auto-annotation session")
         imgui.set_next_window_size(700, 350)
+        frame_data["is_dialog_open"] = True
+        frame_data["experiment"] = Experiment("D:/Projects/python/pdf-toolbox/pdf_toolbox/backend/data/pdf_best_multi_nano.pt", "D:/Projects/python/semantics/project/test_final/imgs", "")
+
     if imgui.begin_popup_modal("Auto-annotation session", flags=imgui.WINDOW_NO_RESIZE )[0]:
         
         imgui.begin_child(label="auto_ann_content", height=250, border=False, )
@@ -63,56 +73,70 @@ def header_auto_annotation(frame_data):
 
         model_file = file_selector("Choose model path...", False)
         if model_file is not None:
-            project.model_path = model_file
+            frame_data["experiment"].model_path = model_file
         
-        
-        if project.model_path != "":
+        if frame_data["experiment"].model_path != "":
             imgui.same_line()
-            imgui.text(project.model_path)
+            imgui.text(frame_data["experiment"].model_path)
         
         images_btn_title = "Choose images directory..."
         if imgui.button(images_btn_title):
             imgui.open_popup(images_btn_title)
         images_path = file_selector(images_btn_title, True)
         if images_path is not None:
-            frame_data["folder_path"] = images_path
+            frame_data["experiment"].data_path = images_path
  
-        if frame_data["folder_path"] != "":
+        if frame_data["experiment"].data_path != "":
             imgui.same_line()
-            imgui.text(frame_data["folder_path"])
+            imgui.text(frame_data["experiment"].data_path)
         
+        _, frame_data["experiment"].exp_name = imgui.input_text("Name",frame_data["experiment"].exp_name, 128)
         imgui.separator()
         imgui.push_item_width(520)
-        _, frame_data["threshold_conf"] = imgui.slider_float(
+        _, frame_data["experiment"].threshold_conf = imgui.slider_float(
                     label="Confidence threshold",
-                    value=frame_data["threshold_conf"],
+                    value=frame_data["experiment"].threshold_conf,
                     min_value=0.0,
                     max_value=1.0,
                     format="%.2f",
                 )
         
-        _, frame_data["threshold_iou"] = imgui.slider_float(
+        _, frame_data["experiment"].threshold_iou = imgui.slider_float(
                     label="IoU threshold",
-                    value=frame_data["threshold_iou"],
+                    value=frame_data["experiment"].threshold_iou,
                     min_value=0.0,
                     max_value=1.0,
                     format="%.2f",
                 )
+                
         imgui.pop_item_width()
         imgui.separator()
 
         imgui.end_child()
         if imgui.button("Start annotation"):
+
+            frame_data["experiment"].update_info(load_annotations=False)
+            frame_data["experiment"].is_running = True
+            frame_data["is_running"] = True
+            frame_data["experiment"].progress = 0
+            frame_data["done"] = False
+
+            frame_data["num_imgs"] = len(frame_data["experiment"].imgs)
+            frame_data["project"].save_experiment(frame_data["experiment"])
+            thread = threading.Thread(target=start_inference, args=(frame_data, frame_data["experiment"]))
+            thread.start()
             imgui.close_current_popup()
+            frame_data["is_dialog_open"] = False
         imgui.same_line()
         if imgui.button("Close"):
             imgui.close_current_popup()
+            frame_data["is_dialog_open"] = False
         
         imgui.end_popup()
     
-    if frame_data["is_running"]:
+    """ if frame_data["is_running"]:
         imgui.internal.pop_item_flag()
-        imgui.pop_style_var()
+        imgui.pop_style_var() """
 
     imgui.columns(1)
 
@@ -123,18 +147,7 @@ def header_auto_annotation(frame_data):
 
     if start_clicked:
 
-        if not frame_data["is_running"]:
-            frame_data["is_running"] = True
-            frame_data["progress"] = 0
-            frame_data["done"] = False
-            frame_data["predictions"] = {}
-
-            imgs = glob.glob(frame_data["folder_path"] + "/*.jpg")
-            frame_data["num_imgs"] = len(imgs)
-
-            thread = threading.Thread(target=start_inference, args=(frame_data, ))
-            thread.start()
-        else:
+        if frame_data["is_running"]:
             frame_data["is_running"] = False
 
     imgui.same_line()
@@ -196,17 +209,17 @@ def _files_list(frame_data, img_render_id):
     imgui.end_child()
     imgui.same_line(position=frame_data["x_offset"])
 
-def inference_progress():
-    global frame_data
+def inference_progress(frame_data):
+
     img_data = frame_data["imgs_to_render"]["inference_preview"]
     if frame_data["is_running"]:
         
         imgui.columns(3,"progr", False)
         imgui.next_column()
         imgui.progress_bar(
-            fraction=frame_data["progress"] * 10 / frame_data["num_imgs"] , 
+            fraction=frame_data['experiment'].progress * 10 / frame_data["num_imgs"] , 
             size=(-1, 0.0),
-            overlay=f"{int(frame_data['progress'] * 10)}/{frame_data['num_imgs']}"
+            overlay=f"{int(frame_data['experiment'].progress * 10)}/{frame_data['num_imgs']}"
         )
         imgui.columns(1)
         imgui.spacing()
