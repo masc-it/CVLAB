@@ -80,6 +80,12 @@ def main_glfw():
     
     font_config = imgui.FontConfig(oversample_h=4.0, oversample_v=4.0, rasterizer_multiply=0.9)
     io.fonts.add_font_from_file_ttf("Roboto-Regular.ttf", 18, font_config, io.fonts.get_glyph_ranges_default())
+
+    roboto_large = io.fonts.add_font_from_file_ttf(
+        "Roboto-Regular.ttf", 30, imgui.FontConfig(oversample_h=2.0, oversample_v=2.0 )
+    )
+    frame_data["fonts"]["roboto_large"] = roboto_large
+
     impl.refresh_font_texture()
     
     frame_data["io"] = imgui.get_io()

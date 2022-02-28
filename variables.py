@@ -27,7 +27,9 @@ frame_data = {
         "x_offset": 0,
         "y_offset": 0
     },
-    
+    "fonts": {
+        
+    },
     "imgs_to_render": {},
     "imgs_info" : {},
     "img_scale": 1.0,

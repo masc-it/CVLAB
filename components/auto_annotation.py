@@ -156,13 +156,11 @@ def header_auto_annotation(frame_data):
 
     if frame_data["is_running"]:
         start_clicked = imgui.button("Stop analysis")
-    else:
-        start_clicked = imgui.button("Start analysis")
+    
+        if start_clicked:
 
-    if start_clicked:
-
-        if frame_data["is_running"]:
-            frame_data["is_running"] = False
+            if frame_data["is_running"]:
+                frame_data["is_running"] = False
 
     imgui.same_line()
     scale_changed, frame_data["img_scale"] = imgui.slider_float(
