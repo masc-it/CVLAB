@@ -31,6 +31,7 @@ def header():
 
             project : Project = frame_data["project"]
             settings.settings_labels(project.labels)
+            settings.settings_data_distribution()
             imgui.end_tab_item()
         imgui.end_tab_bar()
 
