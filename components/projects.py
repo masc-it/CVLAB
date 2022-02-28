@@ -167,6 +167,22 @@ class Project(object):
         with open(f"{self.project_path}/experiments.json", "w") as fp:
             json.dump(exp_obj, fp, indent=1)
         
+    def get_labels_distribution(self):
+
+        counts = {
+            l.index:0 for l in self.labels
+        }
+
+        for collection in self.collections.values():
+            for img_name in self.imgs[collection.id]:
+                img_info : ImageInfo = self.imgs[collection.id][img_name]
+
+                for bbox in img_info.bboxes:
+                    counts[bbox.label] += 1
+        
+        return counts
+
+
 def load_projects():
 
     projects = []

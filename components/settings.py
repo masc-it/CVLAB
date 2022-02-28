@@ -58,18 +58,23 @@ def settings_labels(labels : Labels):
 def settings_data_distribution():
     global frame_data
     project: Project = frame_data["project"]
+
+    label_counts = project.get_labels_distribution()
+
     imgui.begin_child(label="dd", border=False, )
     imgui.push_font(frame_data["fonts"]["roboto_large"])
     imgui.text(" Labels distribution")
     imgui.pop_font()
     imgui.plot_histogram("##labels_dd", 
-        array('f', [10,20,10,15]),
+        array('f', list(label_counts.values())),
         graph_size=(imgui.get_main_viewport().size.x, 300), 
         scale_min=0.0)
     
-    size_per_item = imgui.get_main_viewport().size.x / 4
-    labels = ["Paragraph", "Title", "List", "A"]
-    imgui.columns(4, "label_names", False)
+    num_classes = len(list(label_counts.keys()))
+    size_per_item = imgui.get_main_viewport().size.x / num_classes
+
+    labels = list(label_counts.keys())
+    imgui.columns(num_classes, "label_names", False)
     for i, l in enumerate(labels):
 
         t_size = imgui.calc_text_size(l).x
