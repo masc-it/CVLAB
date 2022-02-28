@@ -3,7 +3,7 @@ import glfw
 import pygame
 import OpenGL.GL as gl
 from PIL import Image
-from math import floor
+import os, json
 from copy import deepcopy
 
 from components.data import BBox, ImageInfo
@@ -74,6 +74,37 @@ def voc_to_yolo(in_size, out_size, box):
     y = y*dh
     h = h*dh
     return (x,y,w,h)
+
+
+def load_img_annotations(img_info : ImageInfo):
+
+    img_name = img_info.name
+    
+    collection = img_info.collection_info
+
+    annotation_file = f"{collection.path}/annotations/{img_name}.json"
+    if not os.path.exists(annotation_file):
+        return
+    with open(annotation_file, "r") as fp:
+        data = json.load(fp)
+
+    bboxes = list(map(lambda x: BBox(x["xmin"],x["ymin"],x["xmax"],x["ymax"], x["label"], x["conf"]), data["bboxes"]))
+
+    img_info.add_bboxes(bboxes)
+    
+def save_img_annotations(img_info : ImageInfo, scale_imgs=False):
+    
+    with open(f"{img_info.collection_info.path}/annotations/{img_info.name}.json", "w") as fp:
+        scaled_bboxes = []
+        if scale_imgs:
+            
+            for bbox in img_info.bboxes:
+                scaled_bboxes.append(bbox.scale((img_info.w, img_info.h), (img_info.orig_w, img_info.orig_h)).as_obj())
+        else:
+            scaled_bboxes = list(map(lambda x: x.as_obj(), img_info.bboxes))
+
+        data = {"collection": img_info.collection_info.id, "bboxes": scaled_bboxes}
+        json.dump(data, fp, indent=1 )
 
 
 def fb_to_window_factor(window):

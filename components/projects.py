@@ -1,7 +1,6 @@
 
 from __future__ import annotations
 import os, glob, json,sys
-from copy import deepcopy
 from components.data import *
 from typing import Generator, Any
 
@@ -87,24 +86,7 @@ class Project(object):
                 bboxes = list(map(lambda x: BBox(x["xmin"],x["ymin"],x["xmax"],x["ymax"], x["label"], x["conf"]), data["bboxes"]))
 
                 img_info.add_bboxes(bboxes)
-    
-    @staticmethod
-    def load_img_annotations(img_info : ImageInfo):
 
-        img_name = img_info.name
-        
-        collection = img_info.collection_info
-
-        annotation_file = f"{collection.path}/annotations/{img_name}.json"
-        if not os.path.exists(annotation_file):
-            return
-        with open(annotation_file, "r") as fp:
-            data = json.load(fp)
-
-        bboxes = list(map(lambda x: BBox(x["xmin"],x["ymin"],x["xmax"],x["ymax"], x["label"], x["conf"]), data["bboxes"]))
-
-        img_info.add_bboxes(bboxes)
-    
     def get_image(self, collection_id) -> Generator[ImageInfo, Any, Any]:
         for img in self.imgs[collection_id]:
             yield self.imgs[collection_id][img]
@@ -169,6 +151,7 @@ class Project(object):
         for exp_key in exp_obj:
             exp = Experiment(exp_obj[exp_key]["model_path"], exp_obj[exp_key]["data_path"], exp_key) 
             self.experiments[exp_key] = exp
+            exp._load_images()
         
         return self.experiments
 

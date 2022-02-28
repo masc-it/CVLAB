@@ -132,7 +132,7 @@ def run(weights=ROOT / 'yolov5s.pt',  # model.pt path(s)
                 with open(txt_path + '.txt', 'w') as f:
                     for *xyxy, conf, cls in reversed(det):
                         xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
-                        preds.append({"class": str(int(cls)), "xmin": xywh[0], "ymin": xywh[1], "xmax": xywh[0] + xywh[2],"ymax": xywh[1] + xywh[3], "conf": float(conf)})
+                        preds.append({"class": str(int(cls)), "xmin": int(xyxy[0]), "ymin": int(xyxy[1]), "xmax": int(xyxy[2]),"ymax": int(xyxy[3]), "conf": float(conf)})
                         if save_txt:  # Write to file
                             line = (int(cls), *xywh, conf) if save_conf else (cls, *xywh)  # label format
                             f.write(('%g ' * len(line)).rstrip() % line + '\n')

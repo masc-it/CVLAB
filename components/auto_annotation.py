@@ -2,11 +2,11 @@ from .data import *
 import imgui
 from .projects import Project
 from yolov5 import detect
-import glob, os
+import  os
 import threading
 from . import annotation
 from .file_selector import file_selector
-
+from custom_utils import save_img_annotations
 
 def start_inference(frame_data, exp: Experiment):
     
@@ -21,11 +21,14 @@ def start_inference(frame_data, exp: Experiment):
         name_ext = os.path.basename(img).rsplit('.')
         img_info = ImageInfo(name_ext[0], name_ext[1], CollectionInfo(exp.exp_name, exp.exp_name, exp.data_path ))
         
-        exp.imgs.append(img_info)
+        # exp.imgs.append(img_info)
         for bbox in bboxes:
             bbox : BBox = BBox(bbox["xmin"], bbox["ymin"], bbox["xmax"], bbox["ymax"], bbox["class"], bbox["conf"])
             img_info.add_bbox(bbox)
         frame_data["imgs_to_render"]["inference_preview"]["img_info"] = img_info
+        
+        exp.add_image(img_info)
+        save_img_annotations(img_info)
         # print(img)
 
         # frame_data["img"] = img
@@ -45,7 +48,18 @@ def start_inference(frame_data, exp: Experiment):
 
 def auto_ann_content(frame_data):
     _files_list(frame_data, "inference_preview")
-    annotation._annotation_screen(frame_data, "inference_preview", allow_edit=False)
+
+    if frame_data["is_running"]:
+        imgui.begin_child("i_progress")
+        imgui.progress_bar(
+            fraction=frame_data['experiment'].progress * 10 / frame_data["num_imgs"] , 
+            size=(-1, 0.0),
+            overlay=f"{int(frame_data['experiment'].progress * 10)}/{frame_data['num_imgs']}"
+        )
+        annotation._annotation_screen(frame_data, "inference_preview", allow_edit=False)
+        imgui.end_child()
+    else:
+        annotation._annotation_screen(frame_data, "inference_preview", allow_edit=False)
 
 
 def header_auto_annotation(frame_data):
@@ -60,7 +74,7 @@ def header_auto_annotation(frame_data):
         imgui.open_popup("Auto-annotation session")
         imgui.set_next_window_size(700, 350)
         frame_data["is_dialog_open"] = True
-        frame_data["experiment"] = Experiment("D:/Projects/python/pdf-toolbox/pdf_toolbox/backend/data/pdf_best_multi_nano.pt", "D:/Projects/python/semantics/project/test_final/imgs", "")
+        frame_data["experiment"] = Experiment("D:/Projects/python/pdf-toolbox/pdf_toolbox/backend/data/pdf_best_multi_nano.pt", "D:\\Projects\\python\\semantics\\project\\test_final\\imgs_exp2", "")
 
     if imgui.begin_popup_modal("Auto-annotation session", flags=imgui.WINDOW_NO_RESIZE )[0]:
         
@@ -115,13 +129,13 @@ def header_auto_annotation(frame_data):
         imgui.end_child()
         if imgui.button("Start annotation"):
 
-            frame_data["experiment"].update_info(load_annotations=False)
+            frame_data["experiment"].update_info()
             frame_data["experiment"].is_running = True
             frame_data["is_running"] = True
             frame_data["experiment"].progress = 0
             frame_data["done"] = False
 
-            frame_data["num_imgs"] = len(frame_data["experiment"].imgs)
+            frame_data["num_imgs"] = frame_data["experiment"].num_imgs
             frame_data["project"].save_experiment(frame_data["experiment"])
             thread = threading.Thread(target=start_inference, args=(frame_data, frame_data["experiment"]))
             thread.start()

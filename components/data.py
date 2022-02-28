@@ -1,6 +1,8 @@
 from __future__ import annotations
 from PIL import Image
 from copy import deepcopy
+import os, glob
+
 
 class BBox(object):
 
@@ -161,23 +163,29 @@ class Experiment(object):
         self.progress = 0.0
         self.imgs : list[ImageInfo] = []
         self.coll_info = CollectionInfo(self.exp_name, self.exp_name, self.data_path)
-
-        self._load_images(load_annotations)
+        self.num_imgs = 0
+        # self._load_images(load_annotations)
     
-    def update_info(self,load_annotations=False):
-        self.coll_info = CollectionInfo(self.exp_name, self.exp_name, self.data_path)
-        self._load_images(load_annotations)
+    def update_info(self,):
 
-    def add_image(self, img_info: ImageInfo):
+        self.coll_info = CollectionInfo(self.exp_name, self.exp_name, self.data_path)
+        self.num_imgs = len(glob.glob(f"{self.data_path}/*.*"))
+        os.makedirs(self.data_path + "/annotations", exist_ok=True)
+
+
+    def add_image(self, img_info: ImageInfo, load_annotations=False):
+        from custom_utils import load_img_annotations
         self.imgs.append(img_info)
+        if load_annotations:
+            load_img_annotations(img_info)
     
     def _load_images(self, load_annotations = True):
         import glob, os
-        from .projects import Project
+        from custom_utils import load_img_annotations
         self.imgs = []
         for img in glob.glob(f"{self.data_path}/*.*"):
             name_ext = os.path.basename(img).rsplit('.')
             img_info = ImageInfo(name_ext[0], name_ext[1], self.coll_info)
             self.imgs.append(img_info)
             if load_annotations:
-                Project.load_img_annotations(img_info)
+                load_img_annotations(img_info)

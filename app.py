@@ -41,7 +41,7 @@ def main_glfw():
     global frame_data
     def glfw_init():
         width, height = 1024, 900
-        window_name = "YoloV5 GUI"
+        window_name = "CVLAB"
         if not glfw.init():
             print("Could not initialize OpenGL context")
             exit(1)
