@@ -30,8 +30,11 @@ def header():
         if imgui.begin_tab_item("Settings & Info")[0]:
 
             project : Project = frame_data["project"]
+            imgui.begin_child(label="setting_section", border=False, )
             settings.settings_labels(project.labels)
-            settings.settings_data_distribution()
+            settings.settings_dd()
+            settings.settings_label_distribution()
+            imgui.end_child()
             imgui.end_tab_item()
         imgui.end_tab_bar()
 
@@ -93,7 +96,12 @@ def _files_list(frame_data, img_render_id):
     
     for collection_id in project.collections:
 
-        if imgui.tree_node(project.collections[collection_id].name):
+        collection_open = imgui.tree_node(project.collections[collection_id].name)
+        if imgui.is_item_hovered():
+            dd_info, _ = project.get_data_distribution()
+            imgui.set_tooltip(f"Num. samples: {dd_info[project.collections[collection_id].name]['tot']}\nSplit Ratio: {dd_info[project.collections[collection_id].name]['ratio']:.2f}%")
+        if collection_open:
+           
             for i, img_info in enumerate(project.get_image(collection_id)):
 
                 # img_info = project.imgs[k]

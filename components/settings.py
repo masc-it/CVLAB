@@ -8,11 +8,11 @@ def settings_labels(labels : Labels):
 
     global frame_data
     
-    imgui.begin_child(label="labels_table", height=200, border=False, )
+    imgui.dummy(10,10)
     imgui.push_font(frame_data["fonts"]["roboto_large"])
     imgui.text(" Labels")
     imgui.pop_font()
-    imgui.begin_table("labels_t", 4, flags=imgui.TABLE_SIZING_STRETCH_SAME|imgui.TABLE_RESIZABLE)
+    imgui.begin_table("labels_t", 4, outer_size_height=0, flags=imgui.TABLE_SIZING_STRETCH_SAME|imgui.TABLE_RESIZABLE)
 
     imgui.table_setup_column("INDEX", )
     imgui.table_setup_column("LABEL",)
@@ -52,16 +52,50 @@ def settings_labels(labels : Labels):
             
     imgui.end_table()
     imgui.separator()
-    imgui.end_child()
 
 
-def settings_data_distribution():
+def settings_dd():
+    global frame_data
+    project: Project = frame_data["project"]
+
+    info_dd, tot_samples = project.get_data_distribution()
+
+    imgui.dummy(10,10)
+    imgui.push_font(frame_data["fonts"]["roboto_large"])
+    imgui.text(" Data distribution")
+    imgui.pop_font()
+
+    imgui.text(f"Tot. number of samples: {tot_samples}")
+
+    imgui.begin_table("table_labels_dd", 3,outer_size_height=0, flags=imgui.TABLE_SIZING_STRETCH_SAME)
+
+    imgui.table_setup_column("Collection", )
+    imgui.table_setup_column("Num. of samples",)
+    imgui.table_setup_column("% Ratio",)
+
+    imgui.table_headers_row()
+
+    for k in info_dd:
+        o = info_dd[k]
+        imgui.table_next_row()
+        imgui.table_set_column_index(0)
+        imgui.text(k)
+        imgui.table_set_column_index(1)
+        imgui.text(str(o["tot"]))
+        imgui.table_set_column_index(2)
+        imgui.text("%.2f" % o["ratio"])
+    
+    imgui.end_table()
+    imgui.separator()
+
+
+def settings_label_distribution():
     global frame_data
     project: Project = frame_data["project"]
 
     label_counts = project.get_labels_distribution()
 
-    imgui.begin_child(label="dd", border=False, )
+    imgui.dummy(10,10)
     imgui.push_font(frame_data["fonts"]["roboto_large"])
     imgui.text(" Labels distribution")
     imgui.pop_font()
@@ -74,6 +108,7 @@ def settings_data_distribution():
     size_per_item = imgui.get_main_viewport().size.x / num_classes
 
     labels = list(label_counts.keys())
+
     imgui.columns(num_classes, "label_names", False)
     for i, l in enumerate(labels):
 
@@ -86,5 +121,5 @@ def settings_data_distribution():
         imgui.text(l)
         #imgui.same_line()
         imgui.next_column()
-        
-    imgui.end_child()
+    
+    imgui.separator()

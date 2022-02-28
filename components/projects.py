@@ -170,7 +170,7 @@ class Project(object):
     def get_labels_distribution(self):
 
         counts = {
-            l.index:0 for l in self.labels
+            l.label:0 for l in self.labels
         }
 
         for collection in self.collections.values():
@@ -178,10 +178,27 @@ class Project(object):
                 img_info : ImageInfo = self.imgs[collection.id][img_name]
 
                 for bbox in img_info.bboxes:
-                    counts[bbox.label] += 1
+                    counts[ self.labels.labels_map[bbox.label].label] += 1
         
         return counts
 
+    def get_data_distribution(self):
+
+        info = {
+            collection.name:{} for collection in self.collections.values()
+        }
+
+        tot = 0
+        for collection in self.collections.values():
+            l = len(self.imgs[collection.id])
+            
+            info[collection.name]["tot"] = l
+            tot += l
+            
+        for collection in self.collections.values():
+            info[collection.name]["ratio"] = info[collection.name]["tot"] / tot * 100
+
+        return info, tot
 
 def load_projects():
 
