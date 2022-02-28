@@ -61,9 +61,10 @@ def _annotation_screen(frame_data, img_render_id, allow_edit=True):
     else: # draw bboxes and handle interaction
         
         if img_info is not None:
+            
             _refresh_bboxes(frame_data, labeling, project, draw_list, img_render_id)
         
-        if allow_edit:
+        if allow_edit and not frame_data["is_dialog_open"]:
             _handle_bbox_drag(frame_data, labeling,img_info)
             _handle_bbox_resize(frame_data, labeling,img_info)
             
@@ -135,7 +136,7 @@ def _refresh_bboxes(frame_data, labeling, project: Project, draw_list, img_rende
             thickness=1
         )
 
-        if imgui.get_mouse_pos()[0] >= bbox.xmin + frame_data["x_offset"]  and\
+        if not frame_data["is_dialog_open"] and imgui.get_mouse_pos()[0] >= bbox.xmin + frame_data["x_offset"]  and\
             imgui.get_mouse_pos()[0] <= bbox.xmax + frame_data["x_offset"]  and\
             imgui.get_mouse_pos()[1] >= bbox.ymin - imgui.get_scroll_y() +  frame_data["y_offset"]  and\
             imgui.get_mouse_pos()[1] <=  bbox.ymax - imgui.get_scroll_y() +  frame_data["y_offset"] :
@@ -145,7 +146,9 @@ def _refresh_bboxes(frame_data, labeling, project: Project, draw_list, img_rende
                 frame_data["prev_cursor"] = glfw.HAND_CURSOR
                 #print("created")
             found.append(bbox)
-            
+    
+    if frame_data["is_dialog_open"]:
+        return
     # take the closest window. Needed for nested bboxes.
     ordered_found = sorted(found, key=lambda x: abs(imgui.get_mouse_pos()[0] - x.xmin))
 

@@ -1,6 +1,8 @@
 from __future__ import annotations
 from PIL import Image
 from copy import deepcopy
+import os, glob
+
 
 class BBox(object):
 
@@ -149,23 +151,41 @@ class CollectionInfo(object):
 class Experiment(object):
 
     i = 0
-    def __init__(self, model_path:str, data_path:str, exp_name: str) -> None:
+    def __init__(self, model_path:str, data_path:str, exp_name: str, load_annotations = True) -> None:
         
         self.exp_name = exp_name
         self.model_path = model_path
         self.data_path = data_path
+        self.threshold_iou = 0.45
+        self.threshold_conf = 0.4
+
+        self.is_running = False
+        self.progress = 0.0
         self.imgs : list[ImageInfo] = []
-        self._load_images()
+        self.coll_info = CollectionInfo(self.exp_name, self.exp_name, self.data_path)
+        self.num_imgs = 0
+        # self._load_images(load_annotations)
     
-    def add_image(self, img_info: ImageInfo):
+    def update_info(self,):
+
+        self.coll_info = CollectionInfo(self.exp_name, self.exp_name, self.data_path)
+        self.num_imgs = len(glob.glob(f"{self.data_path}/*.*"))
+        os.makedirs(self.data_path + "/annotations", exist_ok=True)
+
+
+    def add_image(self, img_info: ImageInfo, load_annotations=False):
+        from custom_utils import load_img_annotations
         self.imgs.append(img_info)
+        if load_annotations:
+            load_img_annotations(img_info)
     
-    def _load_images(self):
+    def _load_images(self, load_annotations = True):
         import glob, os
-        from .projects import Project
-        coll_info : CollectionInfo = CollectionInfo(self.exp_name, self.exp_name, self.data_path)
+        from custom_utils import load_img_annotations
+        self.imgs = []
         for img in glob.glob(f"{self.data_path}/*.*"):
             name_ext = os.path.basename(img).rsplit('.')
-            img_info = ImageInfo(name_ext[0], name_ext[1], coll_info)
+            img_info = ImageInfo(name_ext[0], name_ext[1], self.coll_info)
             self.imgs.append(img_info)
-            Project.load_img_annotations(img_info)
+            if load_annotations:
+                load_img_annotations(img_info)

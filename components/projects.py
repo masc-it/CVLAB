@@ -1,7 +1,6 @@
 
 from __future__ import annotations
 import os, glob, json,sys
-from copy import deepcopy
 from components.data import *
 from typing import Generator, Any
 
@@ -87,24 +86,7 @@ class Project(object):
                 bboxes = list(map(lambda x: BBox(x["xmin"],x["ymin"],x["xmax"],x["ymax"], x["label"], x["conf"]), data["bboxes"]))
 
                 img_info.add_bboxes(bboxes)
-    
-    @staticmethod
-    def load_img_annotations(img_info : ImageInfo):
 
-        img_name = img_info.name
-        
-        collection = img_info.collection_info
-
-        annotation_file = f"{collection.path}/annotations/{img_name}.json"
-        if not os.path.exists(annotation_file):
-            return
-        with open(annotation_file, "r") as fp:
-            data = json.load(fp)
-
-        bboxes = list(map(lambda x: BBox(x["xmin"],x["ymin"],x["xmax"],x["ymax"], x["label"], x["conf"]), data["bboxes"]))
-
-        img_info.add_bboxes(bboxes)
-    
     def get_image(self, collection_id) -> Generator[ImageInfo, Any, Any]:
         for img in self.imgs[collection_id]:
             yield self.imgs[collection_id][img]
@@ -167,10 +149,56 @@ class Project(object):
             exp_obj =json.load(fp)
         
         for exp_key in exp_obj:
-            exp = Experiment("", exp_obj[exp_key], exp_key) 
+            exp = Experiment(exp_obj[exp_key]["model_path"], exp_obj[exp_key]["data_path"], exp_key) 
             self.experiments[exp_key] = exp
+            exp._load_images()
         
         return self.experiments
+
+    def save_experiment(self, exp: Experiment):
+        self.experiments[exp.exp_name] = exp
+        with open(f"{self.project_path}/experiments.json", "r") as fp:
+            exp_obj = json.load(fp)
+        exp_obj[exp.exp_name] = {
+            "data_path" : exp.data_path,
+            "model_path": exp.model_path
+        }
+
+        with open(f"{self.project_path}/experiments.json", "w") as fp:
+            json.dump(exp_obj, fp, indent=1)
+        
+    def get_labels_distribution(self):
+
+        counts = {
+            l.label:0 for l in self.labels
+        }
+
+        for collection in self.collections.values():
+            for img_name in self.imgs[collection.id]:
+                img_info : ImageInfo = self.imgs[collection.id][img_name]
+
+                for bbox in img_info.bboxes:
+                    counts[ self.labels.labels_map[bbox.label].label] += 1
+        
+        return counts
+
+    def get_data_distribution(self):
+
+        info = {
+            collection.name:{} for collection in self.collections.values()
+        }
+
+        tot = 0
+        for collection in self.collections.values():
+            l = len(self.imgs[collection.id])
+            
+            info[collection.name]["tot"] = l
+            tot += l
+            
+        for collection in self.collections.values():
+            info[collection.name]["ratio"] = info[collection.name]["tot"] / tot * 100
+
+        return info, tot
 
 def load_projects():
 

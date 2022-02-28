@@ -1,14 +1,10 @@
 import imgui
-from components.data import BBox, ImageInfo, Labels
+from components.data import Labels
 from variables import frame_data
-import threading
-
-from .file_selector import file_selector
 from .auto_annotation import header_auto_annotation, auto_ann_content
 import glfw
-from copy import deepcopy
 from .projects import Project
-from . import annotation
+from . import annotation, settings
 
 def header():
     global frame_data
@@ -25,11 +21,20 @@ def header():
         if imgui.begin_tab_item("Auto annotation")[0]:
             #print(imgui.get_mouse_pos())
             #frame_data["y_offset"] = imgui.get_main_viewport().size.y - imgui.get_content_region_available().y - 8 # frame_data["y_offset_auto_ann"]
+            
             header_auto_annotation(frame_data)
             auto_ann_content(frame_data)
+            
             imgui.end_tab_item()
         
-        if imgui.begin_tab_item("Settings")[0]:
+        if imgui.begin_tab_item("Settings & Info")[0]:
+
+            project : Project = frame_data["project"]
+            imgui.begin_child(label="setting_section", border=False, )
+            settings.settings_labels(project.labels)
+            settings.settings_dd()
+            settings.settings_label_distribution()
+            imgui.end_child()
             imgui.end_tab_item()
         imgui.end_tab_bar()
 
@@ -62,13 +67,7 @@ def header_lab():
                         fp.write(f'{bbox["label"]} ' + " ".join([str(a) for a in yolo_coords]) + f' {bbox["conf"]}\n')
  """
     imgui.same_line()
-    labels_click = imgui.button("Labels")
-
-    if labels_click:
-        imgui.open_popup("Labels")
-    _open_labels_popup(project.labels)
-
-    imgui.same_line()
+    
     scale_changed, frame_data["img_scale"] = imgui.slider_float(
                 label="Zoom",
                 value=frame_data["img_scale"],
@@ -78,58 +77,6 @@ def header_lab():
             )
     if scale_changed:
         frame_data["scale_changed"] = True
-
-
-def _open_labels_popup(labels : Labels):
-    
-    imgui.set_next_window_size(700, 350)
-    if imgui.begin_popup_modal("Labels", flags=imgui.WINDOW_NO_RESIZE )[0]:
-        
-        imgui.begin_child(label="labels_table", height=250, border=False, )
-        imgui.begin_table("labels_t", 4, inner_width=700, flags=imgui.TABLE_SIZING_FIXED_FIT|imgui.TABLE_RESIZABLE)
-
-        imgui.table_setup_column("INDEX",init_width_or_weight=100, )
-        imgui.table_setup_column("LABEL",init_width_or_weight=350)
-        imgui.table_setup_column("COLOR",init_width_or_weight=50)
-        imgui.table_setup_column("SHORTCUT",init_width_or_weight=100)
-
-        imgui.table_headers_row()
-        
-        for label_obj in labels:
-            imgui.table_next_row()
-            imgui.table_set_column_index(0)
-            imgui.text(str(label_obj.index))
-            imgui.table_set_column_index(1)
-            imgui.push_item_width(-1)
-            _,label_obj.label= imgui.input_text(label=f"lab_{label_obj.index}", value=label_obj.label, buffer_length=128)
-            imgui.pop_item_width()
-            imgui.table_set_column_index(2)
-            
-            _, label_obj.rgb = imgui.color_edit3(
-                    f"edit_{label_obj.index}", *label_obj.rgb, flags=
-                        imgui.COLOR_EDIT_NO_LABEL|imgui.COLOR_EDIT_NO_INPUTS|imgui.COLOR_EDIT_INPUT_RGB
-                )
-            imgui.table_set_column_index(3)
-            imgui.push_item_width(-1)
-            short_changed, shortcut= imgui.input_text(label=f"shortcut_{label_obj.index}", value=label_obj.shortcut, buffer_length=2)
-            if short_changed:
-                try:
-                    int(shortcut)
-                    if labels.shortcuts.get(shortcut) is None:
-                        del labels.shortcuts[label_obj.shortcut] # del old shortcut
-                        label_obj.shortcut = shortcut
-                        labels.shortcuts[shortcut] = label_obj
-                except:
-                    pass
-                
-            imgui.pop_item_width()
-             
-        imgui.end_table()
-        imgui.end_child()
-
-        if imgui.button("Close"):
-            imgui.close_current_popup()
-        imgui.end_popup()
 
 
 def lab_content():
@@ -149,7 +96,12 @@ def _files_list(frame_data, img_render_id):
     
     for collection_id in project.collections:
 
-        if imgui.tree_node(project.collections[collection_id].name):
+        collection_open = imgui.tree_node(project.collections[collection_id].name)
+        if imgui.is_item_hovered():
+            dd_info, _ = project.get_data_distribution()
+            imgui.set_tooltip(f"Num. samples: {dd_info[project.collections[collection_id].name]['tot']}\nSplit Ratio: {dd_info[project.collections[collection_id].name]['ratio']:.2f}%")
+        if collection_open:
+           
             for i, img_info in enumerate(project.get_image(collection_id)):
 
                 # img_info = project.imgs[k]

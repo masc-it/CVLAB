@@ -41,7 +41,7 @@ def main_glfw():
     global frame_data
     def glfw_init():
         width, height = 1024, 900
-        window_name = "YoloV5 GUI"
+        window_name = "CVLAB"
         if not glfw.init():
             print("Could not initialize OpenGL context")
             exit(1)
@@ -78,7 +78,14 @@ def main_glfw():
     font_scaling_factor = custom_utils.fb_to_window_factor(window)
     io.font_global_scale = 1. / font_scaling_factor
     
-    io.fonts.add_font_from_file_ttf("Roboto-Regular.ttf", 18, io.fonts.get_glyph_ranges_latin())
+    font_config = imgui.FontConfig(oversample_h=4.0, oversample_v=4.0, rasterizer_multiply=0.9)
+    io.fonts.add_font_from_file_ttf("Roboto-Regular.ttf", 18, font_config, io.fonts.get_glyph_ranges_default())
+
+    roboto_large = io.fonts.add_font_from_file_ttf(
+        "Roboto-Regular.ttf", 30, imgui.FontConfig(oversample_h=2.0, oversample_v=2.0 )
+    )
+    frame_data["fonts"]["roboto_large"] = roboto_large
+
     impl.refresh_font_texture()
     
     frame_data["io"] = imgui.get_io()
@@ -133,20 +140,20 @@ def on_frame():
         imgui.end_main_menu_bar()
     viewport = imgui.get_main_viewport().size
     frame_data["viewport"] = viewport
-    #imgui.set_next_window_size(viewport[0], viewport[1]-25, condition=imgui.ALWAYS)
-    #imgui.set_next_window_position(0, 25, condition=imgui.ALWAYS)
+    imgui.set_next_window_size(viewport[0], viewport[1]-25, condition=imgui.ALWAYS)
+    imgui.set_next_window_position(0, 25, condition=imgui.ALWAYS)
     flags = ( imgui.WINDOW_NO_MOVE 
         | imgui.WINDOW_NO_TITLE_BAR
         |   imgui.WINDOW_NO_COLLAPSE
         | imgui.WINDOW_NO_RESIZE 
     )
-    #flags = imgui.WINDOW_NO_COLLAPSE
     
     imgui.begin("Custom window", None, flags=flags)
     
     home.header()
 
     imgui.end()
+
 
 
 def docking_space(name: str):
