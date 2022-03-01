@@ -13,11 +13,11 @@ import OpenGL.GL as gl
 from stb import image as im
 import imgui
 
-from components import home, projects
+from components import home, projects, modals
 import ctypes
 import custom_utils
 from variables import frame_data
-
+import threading
 
 myappid = 'mascit.app.yololab' # arbitrary string
 ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
@@ -123,8 +123,8 @@ def main_glfw():
     glfw.terminate()
 
 
-
 # backend-independent frame rendering function:
+
 
 def on_frame():
     global frame_data
@@ -136,6 +136,13 @@ def on_frame():
             )
             if clicked_quit:
                 exit(1)
+            clicked_export, _ = imgui.menu_item(
+                "Export", None, False, True
+            )
+            if clicked_export:
+                frame_data["export_click"] = True
+                
+                
             imgui.end_menu()
         imgui.end_main_menu_bar()
     viewport = imgui.get_main_viewport().size
@@ -149,7 +156,13 @@ def on_frame():
     )
     
     imgui.begin("Custom window", None, flags=flags)
+    if frame_data["export_click"]:
+        frame_data["export_click"] = False
+        imgui.open_popup("Export progress")
+        imgui.set_next_window_size(600, 300)
     
+    modals.show_export_modal(frame_data,)
+
     home.header()
 
     imgui.end()

@@ -147,6 +147,11 @@ class CollectionInfo(object):
         self.name = name
         self.id = id
         self.path = path
+        self.num_imgs = 0
+        self.count_imgs()
+    
+    def count_imgs(self):
+        self.num_imgs = glob.glob(self.path + "/*.*")
 
 class Experiment(object):
 

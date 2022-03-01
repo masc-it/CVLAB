@@ -3,6 +3,8 @@ from __future__ import annotations
 import os, glob, json,sys
 from components.data import *
 from typing import Generator, Any
+import zipfile
+from io import BytesIO
 
 sys.path.append("./")  # add ROOT to PATH
 import custom_utils
@@ -199,6 +201,43 @@ class Project(object):
             info[collection.name]["ratio"] = info[collection.name]["tot"] / tot * 100
 
         return info, tot
+
+    def get_num_imgs(self):
+
+        counts = {coll.name:0 for coll in self.collections.values()}
+
+        for collection in self.collections.values():
+            counts[collection.name] = len(glob.glob(collection.path + "/*.*"))
+
+        return counts
+
+    def export(self):
+        def image2byte_array(path):
+            imgByteArr = BytesIO()
+            image = Image.open(path)
+            image.save(imgByteArr, format='JPEG')
+            imgByteArr = imgByteArr.getvalue()
+            return imgByteArr
+        
+        from PIL import Image
+        """
+        s = BytesIO()
+        zf = zipfile.ZipFile(s, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9)
+        """
+        zf = zipfile.ZipFile(self.project_path + "/export.zip", "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9)
+        for collection in self.collections.values():
+
+            files = glob.glob(collection.path + "/*.*")
+
+            for f in files:
+                img_bytes = image2byte_array(f)
+                
+                zf.writestr( f"{collection.name}/{os.path.basename(f)}", img_bytes)
+                yield collection.name, f
+
+        zf.close()
+
+
 
 def load_projects():
 

@@ -91,7 +91,7 @@ def _files_list(frame_data, img_render_id):
     
     # add 20 more (scrollbar)
     frame_data["x_offset"] = int(frame_data["viewport"][0] / 5) + 20
-
+    
     imgui.begin_child(label="files_list", width=frame_data["x_offset"] - 20, height=-1, border=False, )
     
     for collection_id in project.collections:

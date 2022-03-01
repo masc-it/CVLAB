@@ -30,6 +30,12 @@ frame_data = {
     "fonts": {
         
     },
+    "export_running": False,
+    "export_collection": None,
+    "export_progress": 0,
+    "export_counts": {},
+    "export_click": False,
+    "export_table": {},
     "imgs_to_render": {},
     "imgs_info" : {},
     "img_scale": 1.0,
