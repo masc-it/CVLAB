@@ -42,7 +42,7 @@ def show_export_modal(frame_data,):
         
         imgui.end_table()
 
-        # TODO: use table selection to customize export 
+        # TODO: use table selection to customize export
         export_clicked = imgui.button("Export")
         if export_clicked:
             frame_data["export_running"] = True

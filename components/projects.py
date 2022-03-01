@@ -212,6 +212,7 @@ class Project(object):
         return counts
 
     def export(self):
+        # TODO: pass dict[str, CollectionInfo], maps split (train, test, validation) to a collection
         def image2byte_array(path):
             imgByteArr = BytesIO()
             image = Image.open(path)
