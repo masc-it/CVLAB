@@ -213,6 +213,12 @@ class Project(object):
 
     def export(self):
         # TODO: pass dict[str, CollectionInfo], maps split (train, test, validation) to a collection
+        # TODO: add annotations in yolo format
+        # zip format:
+        #  - imgs
+        #    - train, test, valid
+        #  - annotations
+        #    - train, test, valid
         def image2byte_array(path):
             imgByteArr = BytesIO()
             image = Image.open(path)
