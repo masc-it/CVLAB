@@ -4,7 +4,21 @@ import threading
 from components.projects import Project
 
 def export_process(frame_data, ):
-    for i, (coll_name, _) in enumerate(frame_data["project"].export()):
+
+    ds_split_map = {
+        0: [], # train
+        1: [], # test
+        2: []  # validation
+    }
+
+    for coll_info in frame_data["export_table"]:
+
+        coll_target_split : list[int] = frame_data["export_table"][coll_info]
+        ds_split_map[coll_target_split.index(1)].append(coll_info.path)
+    
+    frame_data["export_counts"] = frame_data["project"].get_num_imgs(ds_split_map)
+
+    for i, (coll_name, _) in enumerate(frame_data["project"].export(ds_split_map)):
         frame_data["export_progress"] = i+1
         frame_data["export_collection"] = coll_name
     frame_data["export_running"] = False
@@ -26,9 +40,9 @@ def show_export_modal(frame_data,):
         project : Project = frame_data["project"]
         if frame_data["export_table"] == {}:
             for i, coll in enumerate(project.collections.values()):
-                frame_data["export_table"][coll.name] = [False] * 3
+                frame_data["export_table"][coll] = [False] * 3
                 if i <= 2:
-                    frame_data["export_table"][coll.name][i] = True
+                    frame_data["export_table"][coll][i] = True
         for coll in project.collections.values():
 
             imgui.table_next_row()
@@ -36,9 +50,9 @@ def show_export_modal(frame_data,):
             imgui.text(coll.name)
             for i, el in enumerate(["train", "test", "validation"]):
                 imgui.table_set_column_index(i+1)
-                if imgui.radio_button(f"##exp_table{coll.name}_{el}", frame_data["export_table"][coll.name][i]):
-                    frame_data["export_table"][coll.name] = [False] * 3
-                    frame_data["export_table"][coll.name][i] = True
+                if imgui.radio_button(f"##exp_table{coll.name}_{el}", frame_data["export_table"][coll][i]):
+                    frame_data["export_table"][coll] = [False] * 3
+                    frame_data["export_table"][coll][i] = True
         
         imgui.end_table()
 
@@ -46,11 +60,10 @@ def show_export_modal(frame_data,):
         export_clicked = imgui.button("Export")
         if export_clicked:
             frame_data["export_running"] = True
-            frame_data["export_counts"] = frame_data["project"].get_num_imgs()
             export_t = threading.Thread(target=export_process, args=(frame_data,))
             export_t.start()
 
-        if frame_data["export_running"]:
+        if frame_data["export_running"] and frame_data["export_collection"] is not None:
             collection_name = frame_data["export_collection"]
             index = frame_data["export_progress"]
             total = frame_data["export_counts"][collection_name]

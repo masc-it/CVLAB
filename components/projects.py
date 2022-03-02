@@ -202,17 +202,21 @@ class Project(object):
 
         return info, tot
 
-    def get_num_imgs(self):
+    def get_num_imgs(self, ds_split_map: dict[int, list[str]]):
 
-        counts = {coll.name:0 for coll in self.collections.values()}
+        counts = {}
+        splits = ["train", "test", "validation"]
+        for i in ds_split_map:
 
-        for collection in self.collections.values():
-            counts[collection.name] = len(glob.glob(collection.path + "/*.*"))
+            paths = ds_split_map[i]
+            for p in paths:
+                files = glob.glob(p + "/*.*")
+                counts[splits[i]] = len(files)
 
         return counts
 
-    def export(self):
-        # TODO: pass dict[str, CollectionInfo], maps split (train, test, validation) to a collection
+    def export(self, ds_split_map: dict[int, list[str]]):
+
         # TODO: add annotations in yolo format
         # zip format:
         #  - imgs
@@ -227,20 +231,21 @@ class Project(object):
             return imgByteArr
         
         from PIL import Image
-        """
-        s = BytesIO()
-        zf = zipfile.ZipFile(s, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9)
-        """
+        
         zf = zipfile.ZipFile(self.project_path + "/export.zip", "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9)
-        for collection in self.collections.values():
+        
+        splits = ["train", "test", "validation"]
+        for i in ds_split_map:
 
-            files = glob.glob(collection.path + "/*.*")
-
-            for f in files:
-                img_bytes = image2byte_array(f)
+            paths = ds_split_map[i]
+            for p in paths:
+                files = glob.glob(p + "/*.*")
                 
-                zf.writestr( f"{collection.name}/{os.path.basename(f)}", img_bytes)
-                yield collection.name, f
+                for f in files:
+                    img_bytes = image2byte_array(f)
+                    
+                    zf.writestr( f"imgs/{splits[i]}/{os.path.basename(f)}", img_bytes)
+                    yield splits[i], f, 
 
         zf.close()
 
