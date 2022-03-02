@@ -202,20 +202,18 @@ class Project(object):
 
         return info, tot
 
-    def get_num_imgs(self, ds_split_map: dict[int, list[str]]):
+    def get_num_imgs(self, ds_split_map: dict[int, list[ImageInfo]]):
 
         counts = {}
         splits = ["train", "test", "validation"]
         for i in ds_split_map:
 
             paths = ds_split_map[i]
-            for p in paths:
-                files = glob.glob(p + "/*.*")
-                counts[splits[i]] = len(files)
+            counts[splits[i]] = len(paths)
 
         return counts
 
-    def export(self, ds_split_map: dict[int, list[str]]):
+    def export(self, ds_split_map: dict[int, list[ImageInfo]]):
 
         # TODO: add annotations in yolo format
         # zip format:
@@ -237,15 +235,16 @@ class Project(object):
         splits = ["train", "test", "validation"]
         for i in ds_split_map:
 
-            paths = ds_split_map[i]
-            for p in paths:
-                files = glob.glob(p + "/*.*")
+            imgs = ds_split_map[i]
+
+            for img in imgs:
                 
-                for f in files:
-                    img_bytes = image2byte_array(f)
-                    
-                    zf.writestr( f"imgs/{splits[i]}/{os.path.basename(f)}", img_bytes)
-                    yield splits[i], f, 
+                img_bytes = image2byte_array(img.path)
+                
+                zf.writestr( f"imgs/{splits[i]}/{img.name}.{img.ext}", img_bytes)
+                zf.writestr( f"annotations/{splits[i]}/{img.name}.txt", img.export_bboxes())
+
+                yield splits[i], img.name
 
         zf.close()
 

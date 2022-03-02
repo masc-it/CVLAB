@@ -47,6 +47,20 @@ class BBox(object):
 
         return BBox(bbox[0], bbox[1], bbox[2], bbox[3], self.label, self.conf)
 
+    def to_yolo(self, in_size : tuple[int, int], out_size : tuple[int, int],):
+
+        box = self.scale(in_size, out_size).as_array()
+        dw = 1./(out_size[0])
+        dh = 1./(out_size[1])
+        x = (box[0] + box[2])/2.0
+        y = (box[1] + box[3])/2.0
+        w = box[2] - box[0]
+        h = box[3] - box[1]
+        x = x*dw
+        w = w*dw
+        y = y*dh
+        h = h*dh
+        return (x,y,w,h)
 
 class ImageInfo(object):
 
@@ -56,6 +70,7 @@ class ImageInfo(object):
     is_changed = False
     def __init__(self, name, extension, collection_info: CollectionInfo) -> None:
         self.name = name
+        self.ext = extension
         self.collection_info = collection_info
         self.path = collection_info.path + f"/{self.name}.{extension}"
         self.bboxes = []
@@ -109,7 +124,19 @@ class ImageInfo(object):
 
     def set_changed(self, value=True):
         self.is_changed = value
+    
+    def export_bboxes(self, format="yolo"):
 
+        annotations = []
+        for bbox in self.bboxes:
+            yolo_coords = bbox.to_yolo(
+                (self.scaled_w, self.scaled_h),
+                (self.orig_w, self.orig_h), 
+                )
+            annotations.append(f'{bbox.label} ' + " ".join([str(a) for a in yolo_coords]) + f' {bbox.conf}\n')
+            # fp.write(f'{bbox["label"]} ' + " ".join([str(a) for a in yolo_coords]) + f' {bbox["conf"]}\n')
+        return "".join(annotations)
+    
 class LabelInfo(object):
     def __init__(self, index : str, label : str, rgb : list[float], shortcut: str) -> None:
         self.index = index

@@ -5,6 +5,7 @@ from components.projects import Project
 
 def export_process(frame_data, ):
 
+    project : Project = frame_data["project"]
     ds_split_map = {
         0: [], # train
         1: [], # test
@@ -14,8 +15,9 @@ def export_process(frame_data, ):
     for coll_info in frame_data["export_table"]:
 
         coll_target_split : list[int] = frame_data["export_table"][coll_info]
-        ds_split_map[coll_target_split.index(1)].append(coll_info.path)
+        ds_split_map[coll_target_split.index(1)] = list(project.imgs[coll_info.id].values())
     
+    #print(ds_split_map)
     frame_data["export_counts"] = frame_data["project"].get_num_imgs(ds_split_map)
 
     for i, (coll_name, _) in enumerate(frame_data["project"].export(ds_split_map)):
@@ -56,7 +58,6 @@ def show_export_modal(frame_data,):
         
         imgui.end_table()
 
-        # TODO: use table selection to customize export
         export_clicked = imgui.button("Export")
         if export_clicked:
             frame_data["export_running"] = True
