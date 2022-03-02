@@ -204,14 +204,16 @@ class Project(object):
 
     def get_num_imgs(self, ds_split_map: dict[int, list[ImageInfo]]):
 
-        counts = {}
+        info = { "splits": {}, "tot": 0}
         splits = ["train", "test", "validation"]
+
         for i in ds_split_map:
 
             paths = ds_split_map[i]
-            counts[splits[i]] = len(paths)
+            info["splits"][splits[i]] = len(paths)
+            info["tot"] += len(paths)
 
-        return counts
+        return info
 
     def export(self, ds_split_map: dict[int, list[ImageInfo]]):
 
