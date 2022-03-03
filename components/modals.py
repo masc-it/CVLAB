@@ -38,7 +38,7 @@ def export_process(frame_data, ):
 def show_export_modal(frame_data,):
 
 
-    if imgui.begin_popup_modal("Export progress", flags=imgui.WINDOW_NO_RESIZE )[0]:
+    if imgui.begin_popup_modal("Export progress",  )[0]: # imgui.WINDOW_NO_RESIZE
 
         imgui.begin_table("export_t", 4, outer_size_height=0, flags=imgui.TABLE_SIZING_STRETCH_SAME|imgui.TABLE_RESIZABLE)
 
