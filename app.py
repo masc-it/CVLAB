@@ -96,6 +96,7 @@ def main_glfw():
 
     # test
     project : projects.Project = frame_data["projects"][0]
+    print(project.name)
     frame_data["project"]  = project
 
     project.init_project()

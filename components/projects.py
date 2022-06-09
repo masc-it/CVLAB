@@ -1,6 +1,7 @@
 
 from __future__ import annotations
 import os, glob, json,sys
+from pathlib import Path
 from components.data import *
 from typing import Generator, Any
 import zipfile
@@ -76,6 +77,8 @@ class Project(object):
 
         for collection in self.collections.values():
 
+            if not Path(f"{collection.path}/annotations").exists():
+                continue
             for img_name in self.imgs[collection.id]:
                 img_info : ImageInfo = self.imgs[collection.id][img_name]
 
@@ -241,10 +244,14 @@ class Project(object):
 
             for img in imgs:
                 
+                if len(img.bboxes) == 0:
+                    continue
                 img_bytes = image2byte_array(img.path)
                 
-                zf.writestr( f"imgs/{splits[i]}/{img.name}.{img.ext}", img_bytes)
-                zf.writestr( f"annotations/{splits[i]}/{img.name}.txt", img.export_bboxes())
+                zf.writestr( f"dataset/{splits[i]}/images/{img.name}.{img.ext}", img_bytes)
+                zf.writestr( f"dataset/{splits[i]}/labels/{img.name}.txt", img.export_bboxes())
+                #zf.writestr( f"imgs/{splits[i]}/{img.name}.{img.ext}", img_bytes)
+                #zf.writestr( f"annotations/{splits[i]}/{img.name}.txt", img.export_bboxes())
 
                 yield splits[i], img.name
 

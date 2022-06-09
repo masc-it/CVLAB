@@ -133,7 +133,7 @@ class ImageInfo(object):
                 (self.scaled_w, self.scaled_h),
                 (self.orig_w, self.orig_h), 
                 )
-            annotations.append(f'{bbox.label} ' + " ".join([str(a) for a in yolo_coords]) + f' {bbox.conf}\n')
+            annotations.append(f'{bbox.label} ' + " ".join([str(a) for a in yolo_coords]) + '\n') #  {bbox.conf}
             # fp.write(f'{bbox["label"]} ' + " ".join([str(a) for a in yolo_coords]) + f' {bbox["conf"]}\n')
         return "".join(annotations)
     
