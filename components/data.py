@@ -128,7 +128,10 @@ class ImageInfo(object):
     def export_bboxes(self, format="yolo"):
 
         annotations = []
-        for bbox in self.bboxes:
+        for i, bbox in enumerate(self.bboxes):
+            if bbox.xmin < 0 or bbox.ymin < 0 or bbox.xmax < 0 or bbox.ymax < 0:
+                print(f"WARNING: {self.name} - {i}th label is corrupt")
+                continue
             yolo_coords = bbox.to_yolo(
                 (self.scaled_w, self.scaled_h),
                 (self.orig_w, self.orig_h), 

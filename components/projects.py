@@ -195,7 +195,8 @@ class Project(object):
 
         tot = 0
         for collection in self.collections.values():
-            l = len(self.imgs[collection.id])
+            imgs = list(filter(lambda x: len(x.bboxes)> 0, self.imgs[collection.id].values()))
+            l = len(imgs)
             
             info[collection.name]["tot"] = l
             tot += l
@@ -228,7 +229,7 @@ class Project(object):
         #    - train, test, valid
         def image2byte_array(path):
             imgByteArr = BytesIO()
-            image = Image.open(path)
+            image = Image.open(path).convert("RGB")
             image.save(imgByteArr, format='JPEG')
             imgByteArr = imgByteArr.getvalue()
             return imgByteArr

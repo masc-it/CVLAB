@@ -107,7 +107,7 @@ def _files_list(frame_data, img_render_id):
                 # img_info = project.imgs[k]
                 name = img_info.name
                 clicked, _ = imgui.selectable(
-                            label=name, selected=(frame_data["selected_file"]["idx"] == i and frame_data["selected_file"]["collection"] == collection_id)
+                            label=name + (" OK" if len(img_info.bboxes) > 0 else "") , selected=(frame_data["selected_file"]["idx"] == i and frame_data["selected_file"]["collection"] == collection_id)
                         )
                 
                 if clicked or frame_data["scale_changed"]:
