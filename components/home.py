@@ -77,6 +77,21 @@ def header_lab():
             )
     if scale_changed:
         frame_data["scale_changed"] = True
+    
+    if frame_data["io"].mouse_pos[0] > frame_data["viewport"][0] - 60:
+        #frame_data["prev_cursor"] = glfw.ARROW_CURSOR
+        glfw.set_cursor(frame_data["glfw"]["window"], glfw.create_standard_cursor(glfw.VRESIZE_CURSOR))
+    else:
+        glfw.set_cursor(frame_data["glfw"]["window"], glfw.create_standard_cursor(glfw.ARROW_CURSOR))
+
+    mouse_wheel = frame_data["io"].mouse_wheel
+    if mouse_wheel != 0 and frame_data["io"].mouse_pos[0] > frame_data["x_offset"] and\
+        frame_data["io"].mouse_pos[0] < frame_data["viewport"][0] - 60:
+        frame_data["img_scale"] += 0.2 if mouse_wheel > 0 else -0.2
+        frame_data["img_scale"] = min(2.0, frame_data["img_scale"])
+        frame_data["img_scale"] = max(0.5, frame_data["img_scale"])
+        frame_data["scale_changed"] = True
+    
 
 
 def lab_content():
@@ -117,6 +132,7 @@ def _files_list(frame_data, img_render_id):
                         frame_data["scale_changed"] = True
                         base_p = name
                         img_data["name"] = name
+                        project.save_annotations()
                         
                         img_data["img_info"] = img_info
                         frame_data["selected_file"]["collection"] = collection_id

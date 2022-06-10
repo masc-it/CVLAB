@@ -25,13 +25,13 @@ def _annotation_screen(frame_data, img_render_id, allow_edit=True):
     # new bbox requested, was drawing a box and mouse is released => save bbox
     if allow_edit and not imgui.is_mouse_down() and labeling["was_mouse_down"] and labeling["new_box_requested"]:
         labeling["was_mouse_down"] = False
-        labeling["new_box_requested"] = False
+        #labeling["new_box_requested"] = False
         labeling["curr_bbox"].width = abs(labeling["curr_bbox"].xmax - labeling["curr_bbox"].xmin)
         labeling["curr_bbox"].height = abs(labeling["curr_bbox"].ymax - labeling["curr_bbox"].ymin)
 
         img_info.bboxes.append(labeling["curr_bbox"])
-        if labeling["curr_bbox"] is not None:
-            labeling["curr_bbox"] = None
+        #if labeling["curr_bbox"] is not None:
+        labeling["curr_bbox"] = None
         img_info.set_changed(True)
     # draw bbox following mouse coords
     elif allow_edit and imgui.is_mouse_down() and labeling["new_box_requested"]:
@@ -207,3 +207,4 @@ def _refresh_bboxes(frame_data, labeling, project: Project, draw_list, img_rende
     if frame_data["prev_cursor"] != glfw.ARROW_CURSOR and found == [] and not imgui.is_mouse_down(1):
         frame_data["prev_cursor"] = glfw.ARROW_CURSOR
         glfw.set_cursor(frame_data["glfw"]["window"], glfw.create_standard_cursor(glfw.ARROW_CURSOR))
+    

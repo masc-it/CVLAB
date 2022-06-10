@@ -140,7 +140,9 @@ class Project(object):
             for img_name in self.imgs[collection.id]:
                 img_info : ImageInfo = self.imgs[collection.id][img_name]
                 if img_info.is_changed:
-                    with open(f"{collection.path}/annotations/{img_name}.json", "w") as fp:
+                    p = f"{collection.path}/annotations/{img_name}.json"
+                    print(f"SAVED: {p}")
+                    with open(p, "w") as fp:
                         scaled_bboxes = []
                         for bbox in img_info.bboxes:
                             scaled_bboxes.append(bbox.scale((img_info.w, img_info.h), (img_info.orig_w, img_info.orig_h)).as_obj())
