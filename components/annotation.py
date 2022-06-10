@@ -3,6 +3,8 @@ from .data import *
 from .projects import Project
 import glfw
 
+MIN_BBOX_SIZE = 5
+
 def _annotation_screen(frame_data, img_render_id, allow_edit=True):
 
     img_data = frame_data["imgs_to_render"][img_render_id]
@@ -50,14 +52,20 @@ def _annotation_screen(frame_data, img_render_id, allow_edit=True):
         curr_bbox.xmax = frame_data["io"].mouse_pos[0] - frame_data["x_offset"]
         curr_bbox.ymax = frame_data["io"].mouse_pos[1] + imgui.get_scroll_y() - frame_data["y_offset"]
         # convert image coords to screen coords
-        draw_list.add_rect(
-            curr_bbox.xmin + frame_data["x_offset"], 
-            curr_bbox.ymin - imgui.get_scroll_y() +  frame_data["y_offset"], 
-            curr_bbox.xmax + frame_data["x_offset"], 
-            curr_bbox.ymax - imgui.get_scroll_y() +  frame_data["y_offset"], 
-            imgui.get_color_u32_rgba(*project.labels.labels_map[curr_bbox.label].rgb, 255), 
-            thickness=1)
-        img_info.set_changed(True)
+
+        # prevent to draw boxes right-2-left
+        __check_bbox(curr_bbox, frame_data, img_info)
+
+        if curr_bbox.xmax - curr_bbox.xmin > MIN_BBOX_SIZE and\
+           curr_bbox.ymax - curr_bbox.ymin > MIN_BBOX_SIZE : # bboxes must have at least 5px width/height
+            draw_list.add_rect(
+                curr_bbox.xmin + frame_data["x_offset"], 
+                curr_bbox.ymin - imgui.get_scroll_y() +  frame_data["y_offset"], 
+                curr_bbox.xmax + frame_data["x_offset"], 
+                curr_bbox.ymax - imgui.get_scroll_y() +  frame_data["y_offset"], 
+                imgui.get_color_u32_rgba(*project.labels.labels_map[curr_bbox.label].rgb, 255), 
+                thickness=1)
+            img_info.set_changed(True)
     else: # draw bboxes and handle interaction
         
         if img_info is not None:
@@ -87,6 +95,33 @@ def _annotation_screen(frame_data, img_render_id, allow_edit=True):
     imgui.end_child()
 
 
+def __check_bbox(bbox : BBox, frame_data :dict, img_info: ImageInfo):
+    # prevent to draw boxes right-2-left
+    if bbox.xmin > bbox.xmax:
+        xmin = bbox.xmax
+        bbox.xmax = bbox.xmin
+        bbox.xmin = xmin
+    
+    if bbox.ymin > bbox.ymax:
+        ymin = bbox.ymax
+        bbox.ymax = bbox.ymin
+        bbox.ymin = ymin
+ 
+    #print(bbox.as_array())
+    bbox.xmin = max(0, bbox.xmin)
+    bbox.ymin = max(0, bbox.ymin)
+
+    bbox.xmax = min(img_info.scaled_w, bbox.xmax)
+    bbox.ymax = min(img_info.scaled_h, bbox.ymax)
+
+    if bbox.xmax - bbox.xmin <= MIN_BBOX_SIZE:
+        bbox.xmax = bbox.xmin + MIN_BBOX_SIZE
+    if bbox.ymax - bbox.ymin <= MIN_BBOX_SIZE:
+        bbox.ymax = bbox.ymin + MIN_BBOX_SIZE
+    bbox.update_size()
+    #print(bbox.as_array())
+
+
 def _handle_bbox_drag(frame_data, labeling, img_info: ImageInfo):
     if labeling["curr_bbox"] is not None and img_info is not None and imgui.is_mouse_down():
 
@@ -97,15 +132,25 @@ def _handle_bbox_drag(frame_data, labeling, img_info: ImageInfo):
             # save relative mouse offset
             labeling["x_offset"] = labeling["curr_bbox"].width - ( labeling["curr_bbox"].xmax + frame_data["x_offset"] - mouse_pos_x  )  
             labeling["y_offset"] = labeling["curr_bbox"].height - (labeling["curr_bbox"].ymax - mouse_pos_y + frame_data["y_offset"] - imgui.get_scroll_y()) 
-
+ 
         mouse_pos_x -= labeling["x_offset"]
         mouse_pos_y -= labeling["y_offset"]
 
-        labeling["curr_bbox"].xmin = mouse_pos_x - frame_data["x_offset"] # - labeling["curr_bbox"]["width"]/2 # frame_data["io"].mouse_pos[0] ) - labeling["curr_bbox"]["x_min"] ) #  
-        labeling["curr_bbox"].ymin = mouse_pos_y + imgui.get_scroll_y() - frame_data["y_offset"]  #frame_data["io"].mouse_pos[1] + imgui.get_scroll_y() - frame_data["y_offset"] - labeling["curr_bbox"]["height"]/2 # -(labeling["curr_bbox"]["y_max"] - frame_data["io"].mouse_pos[1] )  #
-        labeling["curr_bbox"].xmax = labeling["curr_bbox"].xmin + labeling["curr_bbox"].width
-        labeling["curr_bbox"].ymax = labeling["curr_bbox"].ymin + labeling["curr_bbox"].height
+        new_xmin = mouse_pos_x - frame_data["x_offset"]
+        if new_xmin >= 0 and new_xmin + labeling["curr_bbox"].width < img_info.scaled_w:
+            labeling["curr_bbox"].xmin = max(0, new_xmin)
+        
+        new_xmax = labeling["curr_bbox"].xmin + labeling["curr_bbox"].width
+        if new_xmax <= img_info.scaled_w:
+            labeling["curr_bbox"].xmax = min(img_info.scaled_w, new_xmax)
 
+        new_ymin = mouse_pos_y + imgui.get_scroll_y() - frame_data["y_offset"]
+
+        if new_ymin >= 0 and new_ymin + labeling["curr_bbox"].height < img_info.scaled_h:        
+            labeling["curr_bbox"].ymin = max(0, new_ymin)  #frame_data["io"].mouse_pos[1] + imgui.get_scroll_y() - frame_data["y_offset"] - labeling["curr_bbox"]["height"]/2 # -(labeling["curr_bbox"]["y_max"] - frame_data["io"].mouse_pos[1] )  #
+        
+        labeling["curr_bbox"].ymax = min(img_info.scaled_h, labeling["curr_bbox"].ymin + labeling["curr_bbox"].height)
+    
         img_info.set_changed(True)
     else:
         labeling["was_drawing"] = False
@@ -116,8 +161,13 @@ def _handle_bbox_resize(frame_data, labeling, img_info: ImageInfo):
 
         labeling["curr_bbox"].xmax = frame_data["io"].mouse_pos[0] - frame_data["x_offset"]
         labeling["curr_bbox"].ymax = frame_data["io"].mouse_pos[1] + imgui.get_scroll_y() - frame_data["y_offset"]
-        labeling["curr_bbox"].width = abs(labeling["curr_bbox"].xmax - labeling["curr_bbox"].xmin)
+        
+        # prevent to draw boxes right-2-left
+        __check_bbox(labeling["curr_bbox"], frame_data, img_info)
+        
+        labeling["curr_bbox"].width = abs(labeling["curr_bbox"].xmax - labeling["curr_bbox"].xmin) 
         labeling["curr_bbox"].height = abs(labeling["curr_bbox"].ymax - labeling["curr_bbox"].ymin)
+
         img_info.set_changed(True)
 
 def _refresh_bboxes(frame_data, labeling, project: Project, draw_list, img_render_id):

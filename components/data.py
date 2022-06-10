@@ -12,11 +12,15 @@ class BBox(object):
         self.xmax = xmax
         self.ymax = ymax
 
-        self.width = abs(xmax - xmin)
-        self.height = abs(ymax - ymin)
+        self.update_size()
+        
         self.label = label
         self.conf = conf
     
+    def update_size(self):
+        self.width = abs(self.xmax - self.xmin)
+        self.height = abs(self.ymax - self.ymin)
+
     def as_array(self):
         return [self.xmin, self.ymin, self.xmax, self.ymax]
     
