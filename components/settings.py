@@ -8,6 +8,7 @@ def settings_labels(labels : Labels):
 
     global frame_data
     
+    frame_data["settings_changed"] = False
     imgui.dummy(10,10)
     imgui.push_font(frame_data["fonts"]["roboto_large"])
     imgui.text(" Labels")
@@ -31,10 +32,12 @@ def settings_labels(labels : Labels):
         imgui.pop_item_width()
         imgui.table_set_column_index(2)
         
-        _, label_obj.rgb = imgui.color_edit3(
+        clicked, label_obj.rgb = imgui.color_edit3(
                 f"edit_{label_obj.index}", *label_obj.rgb, flags=
                     imgui.COLOR_EDIT_NO_LABEL|imgui.COLOR_EDIT_NO_INPUTS|imgui.COLOR_EDIT_INPUT_RGB
             )
+        if clicked:
+            frame_data["settings_changed"] = True
         imgui.table_set_column_index(3)
         imgui.push_item_width(-1)
         short_changed, shortcut= imgui.input_text(label=f"shortcut_{label_obj.index}", value=label_obj.shortcut, buffer_length=2)
@@ -45,10 +48,15 @@ def settings_labels(labels : Labels):
                     del labels.shortcuts[label_obj.shortcut] # del old shortcut
                     label_obj.shortcut = shortcut
                     labels.shortcuts[shortcut] = label_obj
+                frame_data["settings_changed"] = True
             except:
                 pass
             
         imgui.pop_item_width()
+        
+        if frame_data["settings_changed"]:
+            frame_data["settings_changed"] = False
+            frame_data["project"].update_labels(save=True)
             
     imgui.end_table()
     imgui.separator()

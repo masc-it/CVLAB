@@ -173,7 +173,7 @@ class Labels(object):
 
     def __getitem__(self, i):
         return self.labels[i]
-    
+
 
 class CollectionInfo(object):
 

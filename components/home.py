@@ -82,10 +82,10 @@ def header_lab():
         #frame_data["prev_cursor"] = glfw.ARROW_CURSOR
         glfw.set_cursor(frame_data["glfw"]["window"], glfw.create_standard_cursor(glfw.VRESIZE_CURSOR))
     else:
-        glfw.set_cursor(frame_data["glfw"]["window"], glfw.create_standard_cursor(glfw.ARROW_CURSOR))
+        glfw.set_cursor(frame_data["glfw"]["window"], glfw.create_standard_cursor(frame_data["prev_cursor"]))
 
     mouse_wheel = frame_data["io"].mouse_wheel
-    if mouse_wheel != 0 and frame_data["io"].mouse_pos[0] > frame_data["x_offset"] and\
+    if frame_data["is_dialog_open"] == False and mouse_wheel != 0 and frame_data["io"].mouse_pos[0] > frame_data["x_offset"] and\
         frame_data["io"].mouse_pos[0] < frame_data["viewport"][0] - 60:
         frame_data["img_scale"] += 0.2 if mouse_wheel > 0 else -0.2
         frame_data["img_scale"] = min(2.0, frame_data["img_scale"])

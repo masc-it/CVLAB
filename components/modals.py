@@ -1,5 +1,6 @@
 import imgui
 import threading
+from components.data import BBox, ImageInfo
 
 from components.projects import Project
 
@@ -106,3 +107,23 @@ def show_export_modal(frame_data,):
             imgui.close_current_popup()
         imgui.end_popup()
 
+
+def show_label_selection(frame_data, bbox: BBox, img_info : ImageInfo):
+
+    if imgui.begin_popup_modal("Label", flags=imgui.WINDOW_NO_RESIZE )[0]: # imgui.WINDOW_NO_RESIZE
+        project : Project = frame_data["project"]
+        imgui.begin_child(label="labels_listt", width=300, height=500, border=False, )
+
+        for label in project.labels:
+            #print(i)
+            clicked, _ = imgui.selectable(
+                                label=label.label , selected=(bbox.label == label.index)
+                            )
+            if clicked:
+                bbox.label = label.index
+                img_info.set_changed(True)
+                frame_data["is_dialog_open"] = False
+                frame_data["is_editing"] = False
+                imgui.close_current_popup()
+        imgui.end_child()
+        imgui.end_popup()

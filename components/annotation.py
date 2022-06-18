@@ -3,6 +3,8 @@ from .data import *
 from .projects import Project
 import glfw
 
+from .modals import show_label_selection
+
 MIN_BBOX_SIZE = 5
 
 def _annotation_screen(frame_data, img_render_id, allow_edit=True):
@@ -22,8 +24,13 @@ def _annotation_screen(frame_data, img_render_id, allow_edit=True):
         imgui.image(img_data["texture"], img_data["scaled_width"], img_data["scaled_height"])
     draw_list : imgui._DrawList = imgui.get_window_draw_list()
     
+    if frame_data["is_editing"] == False and (frame_data["io"].mouse_pos[0] <= frame_data["x_offset"] or \
+       frame_data["io"].mouse_pos[1] <= frame_data["y_offset"] ) :
+        labeling["was_mouse_down"] = False
+        labeling["new_box_requested"] = False
+        labeling["curr_bbox"] = None
     # new bbox requested, was drawing a box and mouse is released => save bbox
-    if allow_edit and not imgui.is_mouse_down() and labeling["was_mouse_down"] and labeling["new_box_requested"]:
+    if labeling["curr_bbox"] is not None and frame_data["is_editing"] == False and allow_edit and not imgui.is_mouse_down() and labeling["was_mouse_down"] and labeling["new_box_requested"]:
         labeling["was_mouse_down"] = False
         #labeling["new_box_requested"] = False
         labeling["curr_bbox"].width = abs(labeling["curr_bbox"].xmax - labeling["curr_bbox"].xmin)
@@ -34,7 +41,7 @@ def _annotation_screen(frame_data, img_render_id, allow_edit=True):
         labeling["curr_bbox"] = None
         img_info.set_changed(True)
     # draw bbox following mouse coords
-    elif allow_edit and imgui.is_mouse_down() and labeling["new_box_requested"]:
+    elif allow_edit and not frame_data["is_dialog_open"] and imgui.is_mouse_down() and labeling["new_box_requested"]:
 
         labeling["was_mouse_down"] = True
         curr_bbox : BBox = labeling["curr_bbox"]
@@ -80,18 +87,33 @@ def _annotation_screen(frame_data, img_render_id, allow_edit=True):
             if imgui.is_key_pressed(glfw.KEY_BACKSPACE) and labeling["curr_bbox"] is not None:
                 img_info.bboxes.remove(labeling["curr_bbox"])
                 labeling["curr_bbox"] = None
-                img_info.set_changed(True)
-
+                img_info.set_changed(True)            
+                
             for i in project.labels.shortcuts:
-                if imgui.is_key_pressed(int(i)+glfw.KEY_0) :
+                if i == "":
+                    continue
+                if imgui.is_key_pressed(int(i)+glfw.KEY_0) : 
                     frame_data["labeling"]["selected_label"] = project.labels.shortcuts[i].index
                     if labeling["curr_bbox"] is not None:
                         labeling["curr_bbox"].label = project.labels.shortcuts[i].index
                         img_info.set_changed(True)
                     break
+            
+            if labeling["curr_bbox"] is not None:
+                l = project.labels.labels_map[labeling['curr_bbox'].label].label
+                imgui.set_tooltip(f"Label: {l}")
 
-            if not imgui.is_mouse_down(0) and not imgui.is_mouse_down(1):
+            if imgui.is_key_pressed(glfw.KEY_TAB) and labeling["curr_bbox"] is not None:
+                
+                imgui.open_popup("Label")
+                imgui.set_next_window_size(350, 600)
+                frame_data["is_editing"] = True
+                frame_data["is_dialog_open"] = True
+            if not imgui.is_mouse_down(0) and not imgui.is_mouse_down(1) and frame_data["is_dialog_open"] == False and frame_data["is_editing"] == False:
                 labeling["curr_bbox"] = None
+        
+        show_label_selection(frame_data, labeling["curr_bbox"], img_info)
+        
     imgui.end_child()
 
 

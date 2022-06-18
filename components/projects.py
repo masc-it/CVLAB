@@ -107,6 +107,8 @@ class Project(object):
                 [ color / 255.0 for color in obj["rgb"]],
                 obj["shortcut"])
             labels.add_label(l)
+        
+        print(list(map(lambda x: x.label, labels)))
         return labels
     
     def update_labels(self, save=True):
@@ -149,6 +151,13 @@ class Project(object):
                         data = {"collection": collection.id, "bboxes": scaled_bboxes}
                         json.dump(data, fp, indent=1 )
                     img_info.set_changed(False)
+
+    """ def save_settings(self):
+
+        labels = list(map(lambda x : x.as_obj(), self.labels))
+
+        with open(f"{self.project_path}/info.json", "w") as fp:
+            json.dump(self.) """
 
     def load_experiments(self):
         
@@ -204,7 +213,7 @@ class Project(object):
             tot += l
             
         for collection in self.collections.values():
-            info[collection.name]["ratio"] = info[collection.name]["tot"] / tot * 100
+            info[collection.name]["ratio"] = info[collection.name]["tot"] / tot * 100 if tot > 0 else 0
 
         return info, tot
 

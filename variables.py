@@ -30,6 +30,7 @@ frame_data = {
     "fonts": {
         
     },
+    "is_editing": False,
     "export_running": False,
     "export_collection": None,
     "export_progress": 0,
