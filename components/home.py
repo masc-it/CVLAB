@@ -65,7 +65,13 @@ def header_lab():
                             (frame_data["imgs_info"][file]["orig_size"][0], frame_data["imgs_info"][file]["orig_size"][1]), 
                             [float(bbox["x_min"]), float(bbox["y_min"]), float(bbox["x_max"]), float(bbox["y_max"])])
                         fp.write(f'{bbox["label"]} ' + " ".join([str(a) for a in yolo_coords]) + f' {bbox["conf"]}\n')
- """
+        """
+    imgui.same_line()
+
+    autoannotate_click = imgui.button("Auto annotate" if not frame_data["autoannotate"] else "Draw box")
+    if imgui.is_key_pressed(glfw.KEY_A):
+        labeling["new_box_requested"] = (not labeling["new_box_requested"])
+        frame_data["autoannotate"] = (not frame_data["autoannotate"])
     imgui.same_line()
     
     scale_changed, frame_data["img_scale"] = imgui.slider_float(

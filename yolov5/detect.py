@@ -3,6 +3,9 @@
 import os
 import sys
 from pathlib import Path
+import cv2
+import torch
+
 
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]  # YOLOv5 root directory
@@ -10,6 +13,13 @@ if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))  # add ROOT to PATH
 
 ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
+
+from utils.torch_utils import select_device, time_sync
+from utils.plots import Annotator, colors, save_one_box
+from utils.general import (check_img_size,
+                        increment_path, non_max_suppression, scale_coords, xyxy2xywh)
+from utils.datasets import IMG_FORMATS, VID_FORMATS, LoadImages
+from models.common import DetectMultiBackend
 
 def run(weights=ROOT / 'yolov5s.pt',  # model.pt path(s)
         source=ROOT / 'data/images',  # file/dir/URL/glob, 0 for webcam
@@ -19,6 +29,7 @@ def run(weights=ROOT / 'yolov5s.pt',  # model.pt path(s)
         iou_thres=0.45,  # NMS IOU threshold
         max_det=1000,  # maximum detections per image
         device='',  # cuda device, i.e. 0 or 0,1,2,3 or cpu
+        save_img = False,
         view_img=False,  # show results
         save_txt=False,  # save results to *.txt
         save_conf=False,  # save confidences in --save-txt labels
@@ -39,24 +50,20 @@ def run(weights=ROOT / 'yolov5s.pt',  # model.pt path(s)
         dnn=False,  # use OpenCV DNN for ONNX inference
         ):
     
-    import cv2
-    import torch
-    from utils.torch_utils import select_device, time_sync
-    from utils.plots import Annotator, colors, save_one_box
-    from utils.general import (check_img_size,
-                            increment_path, non_max_suppression, print_args, scale_coords, xyxy2xywh)
-    from utils.datasets import IMG_FORMATS, VID_FORMATS, LoadImages
-    from models.common import DetectMultiBackend
+    
     source = str(source)
 
-    save_img = not nosave and not source.endswith('.txt')  # save inference images
+    save_dir = None
+    save_path = None
+    # save_img = not nosave and not source.endswith('.txt')  # save inference images
     is_file = Path(source).suffix[1:] in (IMG_FORMATS + VID_FORMATS)
     is_url = source.lower().startswith(('rtsp://', 'rtmp://', 'http://', 'https://'))
     webcam = source.isnumeric() or source.endswith('.txt') or (is_url and not is_file)
     
     # Directories
-    save_dir = increment_path(Path(project) / name, exist_ok=exist_ok)  # increment run
-    (save_dir / 'labels' if save_txt else save_dir).mkdir(parents=True, exist_ok=True)  # make dir
+    if project is not None:
+        save_dir = increment_path(Path(project) / name, exist_ok=exist_ok)  # increment run
+        (save_dir / 'labels' if save_txt else save_dir).mkdir(parents=True, exist_ok=True)  # make dir
 
     # Load model
     device = select_device(device)
@@ -80,6 +87,7 @@ def run(weights=ROOT / 'yolov5s.pt',  # model.pt path(s)
     #with tqdm(dataset) as pbar:
     #    pbar.set_description("Document Image Analysis")
     for path, im, im0s, vid_cap, s in dataset:
+        #print(path)
         t1 = time_sync()
         im = torch.from_numpy(im).to(device)
         im = im.half() if half else im.float()  # uint8 to fp16/32
@@ -113,8 +121,9 @@ def run(weights=ROOT / 'yolov5s.pt',  # model.pt path(s)
                 p, im0, frame = path, im0s.copy(), getattr(dataset, 'frame', 0)
 
             p = Path(p)  # to Path
-            save_path = str(save_dir / p.name)  # im.jpg
-            txt_path = str(save_dir / 'labels' / p.stem) + ('' if dataset.mode == 'image' else f'_{frame}')  # im.txt
+            if save_dir is not None:
+                save_path = str(save_dir / p.name)  # im.jpg
+                txt_path = str(save_dir / 'labels' / p.stem) + ('' if dataset.mode == 'image' else f'_{frame}')  # im.txt
             s += '%gx%g ' % im.shape[2:]  # print string
             gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]  # normalization gain whwh
             imc = im0.copy() if save_crop else im0  # for save_crop
@@ -129,29 +138,35 @@ def run(weights=ROOT / 'yolov5s.pt',  # model.pt path(s)
                     s += f"{n} {names[int(c)]}{'s' * (n > 1)}, "  # add to string
 
                 # Write results
-                with open(txt_path + '.txt', 'w') as f:
+                if save_txt:
+                    with open(txt_path + '.txt', 'w') as f:
+                        for *xyxy, conf, cls in reversed(det):
+                            xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
+                            preds.append({"class": str(int(cls)), "xmin": int(xyxy[0]), "ymin": int(xyxy[1]), "xmax": int(xyxy[2]),"ymax": int(xyxy[3]), "conf": float(conf)})
+                            if save_txt:  # Write to file
+                                line = (int(cls), *xywh, conf) if save_conf else (cls, *xywh)  # label format
+                                f.write(('%g ' * len(line)).rstrip() % line + '\n')
+                                    
+                            if save_img or save_crop or view_img:  # Add bbox to image
+                                c = int(cls)  # integer class
+                                label = None if hide_labels else (names[c] if hide_conf else f'{names[c]} {conf:.2f}')
+                                annotator.box_label(xyxy, label, color=colors(c, True))
+                                if save_crop:
+                                    save_one_box(xyxy, imc, file=save_dir / 'crops' / names[c] / f'{p.stem}.jpg', BGR=True)
+                else:
                     for *xyxy, conf, cls in reversed(det):
                         xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
                         preds.append({"class": str(int(cls)), "xmin": int(xyxy[0]), "ymin": int(xyxy[1]), "xmax": int(xyxy[2]),"ymax": int(xyxy[3]), "conf": float(conf)})
-                        if save_txt:  # Write to file
-                            line = (int(cls), *xywh, conf) if save_conf else (cls, *xywh)  # label format
-                            f.write(('%g ' * len(line)).rstrip() % line + '\n')
-                                
-                        if save_img or save_crop or view_img:  # Add bbox to image
-                            c = int(cls)  # integer class
-                            label = None if hide_labels else (names[c] if hide_conf else f'{names[c]} {conf:.2f}')
-                            annotator.box_label(xyxy, label, color=colors(c, True))
-                            if save_crop:
-                                save_one_box(xyxy, imc, file=save_dir / 'crops' / names[c] / f'{p.stem}.jpg', BGR=True)
-
+                        
             # Print time (inference-only)
             # LOGGER.info(f'{s}Done. ({t3 - t2:.3f}s)')
 
             # Stream results
-            im0 = annotator.result()
-            if view_img:
-                cv2.imshow(str(p), im0)
-                cv2.waitKey(1)  # 1 millisecond
+            if save_img:
+                im0 = annotator.result()
+                if view_img:
+                    cv2.imshow(str(p), im0)
+                    cv2.waitKey(1)  # 1 millisecond
 
             # Save results (image with detections)
             if save_img:

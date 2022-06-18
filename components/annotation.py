@@ -1,8 +1,11 @@
+from pathlib import Path
+from threading import Thread
 import imgui
 from .data import *
 from .projects import Project
 import glfw
-
+import numpy as np
+from yolov5 import detect
 from .modals import show_label_selection
 
 MIN_BBOX_SIZE = 5
@@ -36,10 +39,18 @@ def _annotation_screen(frame_data, img_render_id, allow_edit=True):
         labeling["curr_bbox"].width = abs(labeling["curr_bbox"].xmax - labeling["curr_bbox"].xmin)
         labeling["curr_bbox"].height = abs(labeling["curr_bbox"].ymax - labeling["curr_bbox"].ymin)
 
-        img_info.bboxes.append(labeling["curr_bbox"])
-        #if labeling["curr_bbox"] is not None:
+        if frame_data["autoannotate"] == True:
+            autoannotate(frame_data, labeling["curr_bbox"], img_info)
+        else:
+            img_info.bboxes.append(labeling["curr_bbox"])
+            img_info.set_changed(True)
+            #if labeling["curr_bbox"] is not None:
         labeling["curr_bbox"] = None
-        img_info.set_changed(True)
+
+        if frame_data["autoannotate"]:
+            frame_data["autoannotate"]= False
+            labeling["new_box_requested"] = False
+            
     # draw bbox following mouse coords
     elif allow_edit and not frame_data["is_dialog_open"] and imgui.is_mouse_down() and labeling["new_box_requested"]:
 
@@ -116,6 +127,76 @@ def _annotation_screen(frame_data, img_render_id, allow_edit=True):
         
     imgui.end_child()
 
+def get_iou(bbox1:BBox, bbox2: BBox):
+        """
+        Calculate the Intersection over Union (IoU) of two bounding boxes.
+
+        Returns
+        -------
+        float
+            in [0, 1]
+        """
+
+        # determine the coordinates of the intersection rectangle
+        x_left = max(bbox1.xmin, bbox2.xmin)
+        y_top = max(bbox1.ymin, bbox2.ymin)
+        x_right = min(bbox1.xmax, bbox2.xmax)
+        y_bottom = min(bbox1.ymax, bbox2.ymax)
+
+        if x_right < x_left or y_bottom < y_top:
+            return 0.0
+
+        # The intersection of two axis-aligned bounding boxes is always an
+        # axis-aligned bounding box
+        intersection_area = (x_right - x_left) * (y_bottom - y_top)
+
+        # compute the area of both AABBs
+        bb1_area = (bbox1.xmax - bbox1.xmin) * (bbox1.ymax - bbox1.ymin)
+        bb2_area = (bbox2.xmax - bbox2.xmin) * (bbox2.ymax - bbox2.ymin)
+
+        # compute the intersection over union by taking the intersection
+        # area and dividing it by the sum of prediction + ground-truth
+        # areas - the interesection area
+        iou = intersection_area / float(bb1_area + bb2_area - intersection_area)
+
+        return iou
+def start_autoann(frame_data, img_info: ImageInfo, img_path: Path):
+    
+    predictions = detect.run(weights="D:/Download/letters_best.pt", imgsz=[1280, 1280], conf_thres=0.1, iou_thres=0.5, save_conf=True,
+                exist_ok=True, save_txt=False, source=img_path, project=None, name=None,)
+
+    for _, (bboxes, img)  in enumerate(predictions):
+        
+        #print(bboxes)
+        # exp.imgs.append(img_info)
+        for bbox in bboxes:
+            bbox : BBox = BBox(bbox["xmin"], bbox["ymin"], bbox["xmax"], bbox["ymax"], bbox["class"], bbox["conf"])
+
+            if img_info.scale != 1:
+                bbox = bbox.scale((img_info.orig_w, img_info.orig_h), (img_info.scaled_w, img_info.scaled_h))
+
+            same = list(filter(lambda x: x.xmin == bbox.xmin and x.ymin == bbox.ymin or ( bbox.xmin > x.xmin and bbox.ymin > x.ymin and bbox.xmax < x.xmax and bbox.ymax < x.ymax ) or ( bbox.xmin < x.xmin and bbox.ymin < x.ymin and bbox.xmax > x.xmax and bbox.ymax > x.ymax ) or get_iou(bbox, x) > 0.6, img_info.bboxes))
+            if len(same) == 0:
+                img_info.add_bbox(bbox)
+
+def autoannotate(frame_data, bbox: BBox, img_info: ImageInfo):
+    # load image
+    img = Image.open(img_info.path).convert("RGB")
+
+    # mask area outside selected bbox
+    arr = np.zeros((img.size[1], img.size[0], 3))
+    scaled_bbox = bbox.scale((img_info.w, img_info.h), (img_info.orig_w, img_info.orig_h))
+    crop = np.array(img.crop((math.ceil(scaled_bbox.xmin), math.ceil(scaled_bbox.ymin), math.ceil(scaled_bbox.xmax), math.ceil(scaled_bbox.ymax))))
+    arr[math.ceil(scaled_bbox.ymin):math.ceil(scaled_bbox.ymax), math.ceil(scaled_bbox.xmin):math.ceil(scaled_bbox.xmax), ...] = crop
+    
+    img = Image.fromarray(np.uint8(arr))
+    img.save("lmao.jpg")
+    # run predictions
+
+    t = Thread(target=(start_autoann), args=(frame_data, img_info, Path("lmao.jpg") ))
+    t.start()
+    # add bboxes to canvas
+    
 
 def __check_bbox(bbox : BBox, frame_data :dict, img_info: ImageInfo):
     # prevent to draw boxes right-2-left
