@@ -1,3 +1,5 @@
+from pathlib import Path
+from autoannotate_utils.unsupervised_classification import PseudoClassifier
 
 frame_data = {
 
@@ -30,6 +32,13 @@ frame_data = {
     "fonts": {
         
     },
+    "classifier": 
+        PseudoClassifier(
+            Path("D:\\Documenti\\models\\ukb\\effnet2_tiny_128_simclr.onnx"),
+            kb_path = Path("D:\\Documenti\\datasets\\ssl_ukb\\kb_letters\\"),
+            features_size = 1024
+        ),
+    "autoclassifier": -1,
     "autoannotate": False,
     "is_editing": False,
     "export_running": False,

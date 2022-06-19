@@ -1,5 +1,5 @@
 import imgui
-from components.data import Labels
+from components.data import ImageInfo, Labels
 from variables import frame_data
 from .auto_annotation import header_auto_annotation, auto_ann_content
 import glfw
@@ -72,6 +72,15 @@ def header_lab():
     if imgui.is_key_pressed(glfw.KEY_A):
         labeling["new_box_requested"] = (not labeling["new_box_requested"])
         frame_data["autoannotate"] = (not frame_data["autoannotate"])
+    imgui.same_line()
+
+    autoclassify_click = imgui.button("Add boxes to KB")
+    if autoclassify_click:
+        img_data = frame_data["imgs_to_render"]["annotate_preview"]
+
+        img_info : ImageInfo = img_data["img_info"]
+        annotation.add_bboxes_to_kb(frame_data, img_info)
+        
     imgui.same_line()
     
     scale_changed, frame_data["img_scale"] = imgui.slider_float(

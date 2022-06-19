@@ -7,6 +7,9 @@ import glfw
 import numpy as np
 from yolov5 import detect
 from .modals import show_label_selection
+import time
+
+from autoannotate_utils.unsupervised_classification import PseudoClassifier
 
 MIN_BBOX_SIZE = 5
 
@@ -45,10 +48,15 @@ def _annotation_screen(frame_data, img_render_id, allow_edit=True):
             img_info.bboxes.append(labeling["curr_bbox"])
             img_info.set_changed(True)
             #if labeling["curr_bbox"] is not None:
+        
+        auto_classify(frame_data, labeling["curr_bbox"], img_info)
+        if frame_data["autoclassifier"] != -1:
+            labeling["curr_bbox"].label = frame_data["autoclassifier"]
+            frame_data["autoclassifier"] = -1
+        
         labeling["curr_bbox"] = None
-
         if frame_data["autoannotate"]:
-            frame_data["autoannotate"]= False
+            frame_data["autoannotate"] = False
             labeling["new_box_requested"] = False
             
     # draw bbox following mouse coords
@@ -120,12 +128,61 @@ def _annotation_screen(frame_data, img_render_id, allow_edit=True):
                 imgui.set_next_window_size(350, 600)
                 frame_data["is_editing"] = True
                 frame_data["is_dialog_open"] = True
+            
+            if imgui.is_key_pressed(glfw.KEY_C) and labeling["curr_bbox"] is not None:
+                auto_classify(frame_data, labeling["curr_bbox"], img_info)
+            
+            if imgui.is_key_pressed(glfw.KEY_SPACE) and labeling["curr_bbox"] is not None and frame_data["autoclassifier"] != -1:
+                labeling["curr_bbox"].label = frame_data["autoclassifier"]
+                frame_data["autoclassifier"] = -1
+
             if not imgui.is_mouse_down(0) and not imgui.is_mouse_down(1) and frame_data["is_dialog_open"] == False and frame_data["is_editing"] == False:
                 labeling["curr_bbox"] = None
         
         show_label_selection(frame_data, labeling["curr_bbox"], img_info)
         
     imgui.end_child()
+
+
+def add_bboxes_to_kb(frame_data, img_info: ImageInfo):
+
+    img_info_path = Path(img_info.path)
+    classifier : PseudoClassifier = frame_data["classifier"]
+    img = Image.open(img_info_path).convert("RGB")
+
+    for i, bbox in enumerate(img_info.bboxes):
+        random_name = f"{img_info_path.stem}_{i}"
+        crop_path = (classifier.kb_path / "imgs" / random_name ).with_suffix(".jpg")
+
+        if crop_path.exists():
+            continue
+        scaled_bbox = bbox.scale((img_info.w, img_info.h), (img_info.orig_w, img_info.orig_h))
+        crop = img.crop((math.ceil(scaled_bbox.xmin), math.ceil(scaled_bbox.ymin), math.ceil(scaled_bbox.xmax), math.ceil(scaled_bbox.ymax)))
+        
+        crop.save(crop_path)
+
+        classifier.add_img_to_kb( img_info_path, crop_path, bbox.label)
+
+    classifier.save_kb_single(img_info_path.stem)
+    print("kb saved")
+
+def auto_classify(frame_data, bbox: BBox, img_info: ImageInfo ):
+
+    classifier : PseudoClassifier = frame_data["classifier"]
+    img = Image.open(img_info.path).convert("RGB")
+    scaled_bbox = bbox.scale((img_info.w, img_info.h), (img_info.orig_w, img_info.orig_h))
+    crop = img.crop((math.ceil(scaled_bbox.xmin), math.ceil(scaled_bbox.ymin), math.ceil(scaled_bbox.xmax), math.ceil(scaled_bbox.ymax)))
+    
+    """ random_name = f"{round(time.time()*1000)}"
+    crop_path = (classifier.kb_path / random_name ).with_suffix(".jpg")
+    crop.save(crop_path) """
+
+    label, _, _ = classifier.predict_label(img_path=crop)
+    if label is not None:
+        frame_data["autoclassifier"] = label
+        print(frame_data["project"].labels.labels_map[str(label)].label)
+    else:
+        frame_data["autoclassifier"] = -1
 
 def get_iou(bbox1:BBox, bbox2: BBox):
         """
