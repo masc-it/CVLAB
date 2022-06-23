@@ -129,12 +129,28 @@ def _annotation_screen(frame_data, img_render_id, allow_edit=True):
                 frame_data["is_editing"] = True
                 frame_data["is_dialog_open"] = True
             
-            if imgui.is_key_pressed(glfw.KEY_C) and labeling["curr_bbox"] is not None:
-                auto_classify(frame_data, labeling["curr_bbox"], img_info)
+            """ if imgui.is_key_pressed(glfw.KEY_C) and labeling["curr_bbox"] is not None:
+                auto_classify(frame_data, labeling["curr_bbox"], img_info) """
             
-            if imgui.is_key_pressed(glfw.KEY_SPACE) and labeling["curr_bbox"] is not None and frame_data["autoclassifier"] != -1:
-                labeling["curr_bbox"].label = frame_data["autoclassifier"]
-                frame_data["autoclassifier"] = -1
+            # duplicate bbox
+            if imgui.is_key_pressed(glfw.KEY_D) and labeling["curr_bbox"] is not None:
+                xmin = labeling["curr_bbox"].xmax + 3
+                xmax = xmin + labeling["curr_bbox"].width
+
+                bbox_copy = BBox(
+                    xmin,
+                    labeling["curr_bbox"].ymin,
+                    xmax,
+                    labeling["curr_bbox"].ymax,
+                    labeling["curr_bbox"].label
+                )
+                img_info.bboxes.append(bbox_copy)
+            
+            if imgui.is_key_pressed(glfw.KEY_SPACE) and labeling["curr_bbox"] is not None:
+                auto_classify(frame_data, labeling["curr_bbox"], img_info)
+                if frame_data["autoclassifier"] != -1:
+                    labeling["curr_bbox"].label = frame_data["autoclassifier"]
+                    frame_data["autoclassifier"] = -1
 
             if not imgui.is_mouse_down(0) and not imgui.is_mouse_down(1) and frame_data["is_dialog_open"] == False and frame_data["is_editing"] == False:
                 labeling["curr_bbox"] = None
@@ -219,7 +235,7 @@ def get_iou(bbox1:BBox, bbox2: BBox):
         return iou
 def start_autoann(frame_data, img_info: ImageInfo, img_path: Path):
     
-    predictions = detect.run(weights="D:/Download/letters_best.pt", imgsz=[1280, 1280], conf_thres=0.1, iou_thres=0.5, save_conf=True,
+    predictions = detect.run(weights="D:/Download/letters_best.pt", imgsz=[1280, 1280], conf_thres=0.12, iou_thres=0.5, save_conf=True,
                 exist_ok=True, save_txt=False, source=img_path, project=None, name=None,)
 
     for _, (bboxes, img)  in enumerate(predictions):
@@ -235,6 +251,15 @@ def start_autoann(frame_data, img_info: ImageInfo, img_path: Path):
             same = list(filter(lambda x: x.xmin == bbox.xmin and x.ymin == bbox.ymin or ( bbox.xmin > x.xmin and bbox.ymin > x.ymin and bbox.xmax < x.xmax and bbox.ymax < x.ymax ) or ( bbox.xmin < x.xmin and bbox.ymin < x.ymin and bbox.xmax > x.xmax and bbox.ymax > x.ymax ) or get_iou(bbox, x) > 0.6, img_info.bboxes))
             if len(same) == 0:
                 img_info.add_bbox(bbox)
+            else:
+                same.append(bbox)
+                same = list(sorted(same, key= lambda x: x.conf, reverse=True))
+
+                for d in same[1:]:
+                    img_info.bboxes.remove(d)
+                
+                img_info.bboxes.append(same[0])
+
 
 def autoannotate(frame_data, bbox: BBox, img_info: ImageInfo):
     # load image
@@ -316,7 +341,19 @@ def _handle_bbox_drag(frame_data, labeling, img_info: ImageInfo):
         labeling["was_drawing"] = False
 
 
+def is_mouse_on_bbox_border(bbox: BBox, frame_data):
+
+    if (frame_data["io"].mouse_pos[0] - frame_data["x_offset"] <= bbox.xmax and frame_data["io"].mouse_pos[0] - frame_data["x_offset"] >= bbox.xmax - 5) or\
+        (frame_data["io"].mouse_pos[1]  + imgui.get_scroll_y() - frame_data["y_offset"] <= bbox.ymax and frame_data["io"].mouse_pos[1]  + imgui.get_scroll_y() - frame_data["y_offset"] >= bbox.ymax - 5) :
+        print("on border")
+        frame_data["can_resize"] = True
+
+
 def _handle_bbox_resize(frame_data, labeling, img_info: ImageInfo):
+
+    # TODO 
+    #if labeling["curr_bbox"] is not None:
+    #    is_mouse_on_bbox_border( labeling["curr_bbox"], frame_data)
     if imgui.is_mouse_down(1) and labeling["curr_bbox"] is not None:
 
         labeling["curr_bbox"].xmax = frame_data["io"].mouse_pos[0] - frame_data["x_offset"]
@@ -345,6 +382,31 @@ def _refresh_bboxes(frame_data, labeling, project: Project, draw_list, img_rende
             imgui.get_color_u32_rgba(*project.labels.labels_map[bbox.label].rgb, 255),
             thickness=1
         )
+
+
+        draw_list.add_rect_filled(
+            bbox.xmin + frame_data["x_offset"], 
+            bbox.ymin - 12 - imgui.get_scroll_y() +  frame_data["y_offset"], 
+            bbox.xmax + frame_data["x_offset"], 
+            bbox.ymin - imgui.get_scroll_y() +  frame_data["y_offset"], 
+            imgui.get_color_u32_rgba(*project.labels.labels_map[bbox.label].rgb, 255)
+        )
+
+        imgui.set_cursor_screen_pos(
+                    (bbox.xmin + frame_data["x_offset"],
+                    bbox.ymin - 14 - imgui.get_scroll_y() +  frame_data["y_offset"]
+                    )
+                )
+        imgui.text(
+            project.labels.labels_map[bbox.label].label[:3]
+        )
+        #imgui.pop_text_wrap_pos()
+        """ draw_list.add_text(
+            (bbox.xmin + frame_data["x_offset"], bbox.ymin - 5 - imgui.get_scroll_y() +  frame_data["y_offset"]) ,
+             0,
+             "1",
+             ""
+        ) """
 
         if not frame_data["is_dialog_open"] and imgui.get_mouse_pos()[0] >= bbox.xmin + frame_data["x_offset"]  and\
             imgui.get_mouse_pos()[0] <= bbox.xmax + frame_data["x_offset"]  and\

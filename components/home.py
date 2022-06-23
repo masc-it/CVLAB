@@ -70,7 +70,8 @@ def header_lab():
 
     autoannotate_click = imgui.button("Auto annotate" if not frame_data["autoannotate"] else "Draw box")
     if imgui.is_key_pressed(glfw.KEY_A):
-        labeling["new_box_requested"] = (not labeling["new_box_requested"])
+        if labeling["new_box_requested"] == False:
+            labeling["new_box_requested"] = (not labeling["new_box_requested"])
         frame_data["autoannotate"] = (not frame_data["autoannotate"])
     imgui.same_line()
 
@@ -80,14 +81,14 @@ def header_lab():
 
         img_info : ImageInfo = img_data["img_info"]
         annotation.add_bboxes_to_kb(frame_data, img_info)
-        
+
     imgui.same_line()
     
     scale_changed, frame_data["img_scale"] = imgui.slider_float(
                 label="Zoom",
                 value=frame_data["img_scale"],
                 min_value=0.5,
-                max_value=2.0,
+                max_value=4.0,
                 format="%.1f",
             )
     if scale_changed:
@@ -103,7 +104,7 @@ def header_lab():
     if frame_data["is_dialog_open"] == False and mouse_wheel != 0 and frame_data["io"].mouse_pos[0] > frame_data["x_offset"] and\
         frame_data["io"].mouse_pos[0] < frame_data["viewport"][0] - 60:
         frame_data["img_scale"] += 0.2 if mouse_wheel > 0 else -0.2
-        frame_data["img_scale"] = min(2.0, frame_data["img_scale"])
+        frame_data["img_scale"] = min(4.0, frame_data["img_scale"])
         frame_data["img_scale"] = max(0.5, frame_data["img_scale"])
         frame_data["scale_changed"] = True
     

@@ -38,6 +38,7 @@ frame_data = {
             kb_path = Path("D:\\Documenti\\datasets\\ssl_ukb\\kb_letters\\"),
             features_size = 1024
         ),
+    "can_resize": False,
     "autoclassifier": -1,
     "autoannotate": False,
     "is_editing": False,

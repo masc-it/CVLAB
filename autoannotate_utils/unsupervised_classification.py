@@ -31,9 +31,9 @@ class PseudoClassifier(object):
 
         if len(list(self.kb_path.glob("*.npz"))) > 0:
             self.kb, self.labels, self.kb_dict = self.load_kb()
-
             self.similarity.fit(np.array(self.kb, dtype=np.float32))
         
+            print(f"Features in DB: {len(self.kb)}")
 
         onnx_model = onnx.load(onnx_model_path.as_posix())
         onnx.checker.check_model(onnx_model)
@@ -143,6 +143,7 @@ class PseudoClassifier(object):
         ort_inputs = {self.onnx_model.get_inputs()[0].name: img}
         ort_outs = self.onnx_model.run(None, ort_inputs)
         return ort_outs
+    
 
 class FeatureSimilarity(object):
     
