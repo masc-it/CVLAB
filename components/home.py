@@ -131,20 +131,67 @@ def _files_list(frame_data, img_render_id):
         if imgui.is_item_hovered():
             dd_info, _ = project.get_data_distribution()
             imgui.set_tooltip(f"Num. samples: {dd_info[project.collections[collection_id].name]['tot']}\nSplit Ratio: {dd_info[project.collections[collection_id].name]['ratio']:.2f}%")
+        
         if collection_open:
-           
-            for i, img_info in enumerate(project.get_image(collection_id)):
+            imgs = project.get_images(collection_id)
+            key_pressed = 0
+
+            if imgui.is_key_pressed(glfw.KEY_DOWN):
+                
+                key_pressed = 1
+            
+            if imgui.is_key_pressed(glfw.KEY_UP):
+                key_pressed = -1
+            
+            if key_pressed != 0:
+
+                frame_data["selected_file"]["idx"] += key_pressed
+
+                if frame_data["selected_file"]["idx"] == len(imgs) - 1:
+                    frame_data["selected_file"]["idx"] = 0
+                elif frame_data["selected_file"]["idx"] < 0:
+                    frame_data["selected_file"]["idx"] = 0
+                
+                
+                img_i = imgs[frame_data["selected_file"]["idx"]]
+
+                name = img_i.name
+                img_data["scale"] = frame_data["img_scale"]
+
+                frame_data["scale_changed"] = True
+                base_p = name
+                print(base_p)
+                img_data["name"] = name
+                project.save_annotations()
+                
+                img_data["img_info"] = img_i
+                frame_data["selected_file"]["collection"] = collection_id
+                
+                frame_data["selected_file"]["name"] = base_p
+                if frame_data["scale_changed"]:
+                    frame_data["scale_changed"] = False
+                    img_data["img_info"].change_scale(frame_data["img_scale"])
+                    
+                if frame_data["imgs_info"].get(frame_data["selected_file"]["name"]) is None:
+                    frame_data["imgs_info"][frame_data["selected_file"]["name"]] = {}
+                    frame_data["imgs_info"][frame_data["selected_file"]["name"]]["orig_size"] = [img_data["img_info"].w, img_data["img_info"].h]
+
+                frame_data["imgs_info"][frame_data["selected_file"]["name"]]["scaled_size"] = [img_data["img_info"].scaled_w, img_data["img_info"].scaled_h]
+        
+            for i, img_info in enumerate(imgs):
 
                 # img_info = project.imgs[k]
                 name = img_info.name
                 clicked, _ = imgui.selectable(
                             label=name + (" OK" if len(img_info.bboxes) > 0 else "") , selected=(frame_data["selected_file"]["idx"] == i and frame_data["selected_file"]["collection"] == collection_id)
                         )
-                
+
                 if clicked or frame_data["scale_changed"]:
                     
                     img_data["scale"] = frame_data["img_scale"]
                     if clicked:
+                        frame_data["down_pressed"] = False
+
                         frame_data["scale_changed"] = True
                         base_p = name
                         img_data["name"] = name
@@ -163,7 +210,11 @@ def _files_list(frame_data, img_render_id):
                         frame_data["imgs_info"][frame_data["selected_file"]["name"]]["orig_size"] = [img_data["img_info"].w, img_data["img_info"].h]
 
                     frame_data["imgs_info"][frame_data["selected_file"]["name"]]["scaled_size"] = [img_data["img_info"].scaled_w, img_data["img_info"].scaled_h]
+
+                
             imgui.tree_pop()
-                        
+
+    
+
     imgui.end_child()
     imgui.same_line(position=frame_data["x_offset"])

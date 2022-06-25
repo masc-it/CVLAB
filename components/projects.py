@@ -95,6 +95,11 @@ class Project(object):
     def get_image(self, collection_id) -> Generator[ImageInfo, Any, Any]:
         for img in self.imgs[collection_id]:
             yield self.imgs[collection_id][img]
+    
+    def get_images(self, collection_id) -> list[ImageInfo]:
+        d = self.imgs[collection_id]
+
+        return list(d.values())
 
     def load_labels(self):
 

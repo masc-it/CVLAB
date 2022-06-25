@@ -393,20 +393,13 @@ def _refresh_bboxes(frame_data, labeling, project: Project, draw_list, img_rende
         )
 
         imgui.set_cursor_screen_pos(
-                    (bbox.xmin + frame_data["x_offset"],
-                    bbox.ymin - 14 - imgui.get_scroll_y() +  frame_data["y_offset"]
-                    )
-                )
+            (bbox.xmin + frame_data["x_offset"],
+            bbox.ymin - 14 - imgui.get_scroll_y() +  frame_data["y_offset"]
+            )
+        )
         imgui.text(
             project.labels.labels_map[bbox.label].label[:3]
         )
-        #imgui.pop_text_wrap_pos()
-        """ draw_list.add_text(
-            (bbox.xmin + frame_data["x_offset"], bbox.ymin - 5 - imgui.get_scroll_y() +  frame_data["y_offset"]) ,
-             0,
-             "1",
-             ""
-        ) """
 
         if not frame_data["is_dialog_open"] and imgui.get_mouse_pos()[0] >= bbox.xmin + frame_data["x_offset"]  and\
             imgui.get_mouse_pos()[0] <= bbox.xmax + frame_data["x_offset"]  and\
