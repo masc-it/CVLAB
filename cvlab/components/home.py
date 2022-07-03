@@ -1,5 +1,5 @@
 import imgui
-from components.data import ImageInfo, Labels
+from components.data import ImageInfo
 from variables import frame_data
 from .auto_annotation import header_auto_annotation, auto_ann_content
 import glfw

@@ -13,32 +13,21 @@ import OpenGL.GL as gl
 from stb import image as im
 import imgui
 
-from components import home, projects, modals
+from components import projects as Projects #, modals
 import ctypes
 import custom_utils
-from variables import frame_data
-import threading
+#from variables import frame_data
+
+from cvlab.gui.app import App
+from cvlab.gui.home.component import Home
 
 myappid = 'mascit.app.yololab' # arbitrary string
 ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
-
-def setup_images():
-    global frame_data
-
-    imgs = ["annotate_preview", "inference_preview"]
-    for i in imgs:
-        frame_data["imgs_to_render"][i] = {
-            "prev_name": "",
-            "name": "",
-            "texture": None,
-            "scale": 1.0,
-            "img_info" : None
-        }
-
+app = App()
 
 def main_glfw():
-    global frame_data
+    global app
     def glfw_init():
         width, height = 1024, 900
         window_name = "CVLAB"
@@ -70,7 +59,9 @@ def main_glfw():
     window = glfw_init()
     impl = GlfwRenderer(window)
     io = impl.io
-    frame_data["glfw"] = {"io": io, "window": window}
+
+    app.glfw = {"io": io, "window": window, "previous_cursor": glfw.ARROW_CURSOR}
+
     x = im.load('chip.png')
     glfw.set_window_icon(window, 1, [(x.shape[1],x.shape[0], x)])
     
@@ -84,29 +75,25 @@ def main_glfw():
     roboto_large = io.fonts.add_font_from_file_ttf(
         "Roboto-Regular.ttf", 30, imgui.FontConfig(oversample_h=2.0, oversample_v=2.0 )
     )
-    frame_data["fonts"]["roboto_large"] = roboto_large
+    app.fonts["roboto_large"] = roboto_large
 
     impl.refresh_font_texture()
     
-    frame_data["io"] = imgui.get_io()
+    app.io = imgui.get_io()
 
-    setup_images()
+    #setup_images()
     
-    frame_data["projects"] = projects.load_projects()
+    projects = Projects.load_projects()
 
-    # test
-    project : projects.Project = frame_data["projects"][0]
-    print(project.name)
-    frame_data["project"]  = project
-
-    project.init_project()
+    app.project : Projects.Project = projects[0]
+    app.project.init_project()
     
     #project.load_annotations()
     while not glfw.window_should_close(window):
         glfw.poll_events()
         impl.process_inputs()
 
-        custom_utils.load_images(frame_data["imgs_to_render"])
+        # custom_utils.load_images(frame_data["imgs_to_render"])
        
         imgui.new_frame()
         #docking_space('docking_space')
@@ -128,7 +115,7 @@ def main_glfw():
 
 
 def on_frame():
-    global frame_data
+    global app
 
     if imgui.begin_main_menu_bar():
         if imgui.begin_menu("File", True):
@@ -141,13 +128,13 @@ def on_frame():
                 "Export", None, False, True
             )
             if clicked_export:
-                frame_data["export_click"] = True
+                app.export_dialog_click = True
                 
                 
             imgui.end_menu()
         imgui.end_main_menu_bar()
     viewport = imgui.get_main_viewport().size
-    frame_data["viewport"] = viewport
+    app.viewport = viewport
     imgui.set_next_window_size(viewport[0], viewport[1]-25, condition=imgui.ALWAYS)
     imgui.set_next_window_position(0, 25, condition=imgui.ALWAYS)
     flags = ( imgui.WINDOW_NO_MOVE 
@@ -157,14 +144,15 @@ def on_frame():
     )
     
     imgui.begin("Custom window", None, flags=flags)
-    if frame_data["export_click"]:
-        frame_data["export_click"] = False
+    if app.export_dialog_click:
+        app.export_dialog_click = False
         imgui.open_popup("Export progress")
         imgui.set_next_window_size(600, 600)
     
-    modals.show_export_modal(frame_data,)
+    #modals.show_export_modal(app)
 
-    home.header()
+    home = Home(app)
+    home.main()
 
     imgui.end()
 

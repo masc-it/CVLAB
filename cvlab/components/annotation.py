@@ -7,7 +7,6 @@ import glfw
 import numpy as np
 from yolov5 import detect
 from .modals import show_label_selection
-import time
 
 from autoannotate_utils.unsupervised_classification import PseudoClassifier
 
