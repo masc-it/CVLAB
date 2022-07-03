@@ -15,19 +15,22 @@ import imgui
 
 from components import projects as Projects #, modals
 import ctypes
-import custom_utils
-#from variables import frame_data
+import cvlab.gui.custom_utils as custom_utils
 
 from cvlab.gui.app import App
-from cvlab.gui.home.component import Home
+from cvlab.gui.sections.home import Home
 
-myappid = 'mascit.app.yololab' # arbitrary string
+myappid = 'mascit.app.cvlab' # arbitrary string
 ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
 app = App()
+#home = Home(app)
+home = None
 
 def main_glfw():
     global app
+    global home
+
     def glfw_init():
         width, height = 1024, 900
         window_name = "CVLAB"
@@ -81,25 +84,27 @@ def main_glfw():
     
     app.io = imgui.get_io()
 
-    #setup_images()
-    
     projects = Projects.load_projects()
 
     app.project : Projects.Project = projects[0]
     app.project.init_project()
-    
+
+    home = Home(app)
     #project.load_annotations()
     while not glfw.window_should_close(window):
         glfw.poll_events()
         impl.process_inputs()
 
-        # custom_utils.load_images(frame_data["imgs_to_render"])
+        # load image textures if needed
+        # this must be done before the on_frame call
+        custom_utils.load_images(app)
        
         imgui.new_frame()
-        #docking_space('docking_space')
+        viewport = imgui.get_main_viewport().size
+        app.viewport = viewport
+
         on_frame()
-        # print(imgui.get_main_viewport().size)
-        # print(imgui.get_mouse_pos())
+        
         gl.glClearColor(1., 1., 1., 1)
         gl.glClear(gl.GL_COLOR_BUFFER_BIT)
         imgui.render()
@@ -116,6 +121,7 @@ def main_glfw():
 
 def on_frame():
     global app
+    global home
 
     if imgui.begin_main_menu_bar():
         if imgui.begin_menu("File", True):
@@ -133,9 +139,9 @@ def on_frame():
                 
             imgui.end_menu()
         imgui.end_main_menu_bar()
-    viewport = imgui.get_main_viewport().size
-    app.viewport = viewport
-    imgui.set_next_window_size(viewport[0], viewport[1]-25, condition=imgui.ALWAYS)
+    
+    
+    imgui.set_next_window_size(app.viewport[0], app.viewport[1]-25, condition=imgui.ALWAYS)
     imgui.set_next_window_position(0, 25, condition=imgui.ALWAYS)
     flags = ( imgui.WINDOW_NO_MOVE 
         | imgui.WINDOW_NO_TITLE_BAR
@@ -150,8 +156,7 @@ def on_frame():
         imgui.set_next_window_size(600, 600)
     
     #modals.show_export_modal(app)
-
-    home = Home(app)
+    
     home.main()
 
     imgui.end()
