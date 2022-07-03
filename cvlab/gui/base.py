@@ -17,3 +17,4 @@ class Component(object):
     
     def main(self):
         raise NotImplementedError()
+

@@ -6,7 +6,8 @@ from PIL import Image
 import os, json
 from copy import deepcopy
 
-from components.data import BBox, ImageInfo
+from cvlab.components.data import BBox, ImageInfo
+from cvlab.gui.app import App, Image as CVLabImage
 
 def yolo_to_x0y0(yolo_pred, input_w, input_h):
 
@@ -163,29 +164,24 @@ def load_image_from_file(image_name, scale=1):
         "orig_height": orig_height
     }
 
-def _load_image_texture(img_id, image_name, imgs_to_render):
+def _load_image_texture(image_data : CVLabImage):
     
-    img_data = load_image_from_file(image_name, imgs_to_render[img_id]["scale"])
+    img_data = load_image_from_file(image_data.img_info.path, image_data.scale)  
     
-    imgs_to_render[img_id]["name"] = image_name
-    imgs_to_render[img_id]["texture"] = img_data["texture"]
-    imgs_to_render[img_id]["width"] = img_data["orig_width"]
-    imgs_to_render[img_id]["height"] = img_data["orig_height"]
-    imgs_to_render[img_id]["scaled_width"] = img_data["scaled_width"]
-    imgs_to_render[img_id]["scaled_height"] = img_data["scaled_height"]
+    image_data.texture = img_data["texture"]
 
 
-def load_images(imgs_to_render):
+def load_images(app : App):
 
-    for key in imgs_to_render:
-        img_obj = imgs_to_render[key]
-        img_info : ImageInfo = img_obj["img_info"]
+    image_data = app.image_data
 
-        if img_info is not None and (img_obj["texture"] is None or img_obj["prev_name"] != img_obj["name"]\
-            or img_obj["prev_scale"] != img_obj["scale"]):
-            _load_image_texture(key, img_info.path, imgs_to_render)
-            img_obj["prev_name"] = img_obj["name"]
-            img_obj["prev_scale"] = img_obj["scale"]
+    if image_data.img_info is not None and image_data.has_changed:
+
+        print("load img")
+        image_data.has_changed = False
+        
+        _load_image_texture(image_data)
+
 
 
 def load_yolo_predictions(path, image_width, image_height, scaled_width, scaled_height):

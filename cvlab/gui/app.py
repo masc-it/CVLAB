@@ -37,6 +37,8 @@ class Image(object):
         self.scale_changed = False
         self.scale = 1.0
 
+        self.has_changed = False
+
 
 """
 "selected_file" : {
@@ -74,7 +76,7 @@ class App(object):
         self.glfw = {}
 
         self.fonts = {}
-        
+
         # OFFSETS   
         self.y_offset = 88
         self.y_offset_lab = 88
@@ -89,7 +91,9 @@ class App(object):
         self.auto_annotate = False
 
         self.btn_down_pressed = False
-        # ------ HOME -------------
+        # ------ ANNOTATOR -------------
+
+        self.image_data = Image()
         
         self.export_dialog_click = False
         
