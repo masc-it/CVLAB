@@ -8,7 +8,7 @@ import zipfile
 from io import BytesIO
 
 sys.path.append("./")  # add ROOT to PATH
-import custom_utils
+import cvlab.gui.custom_utils as custom_utils
 
 class Project(object):
     

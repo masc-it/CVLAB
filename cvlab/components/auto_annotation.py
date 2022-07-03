@@ -7,7 +7,7 @@ import  os
 import threading
 from . import annotation
 from .file_selector import file_selector
-from custom_utils import save_img_annotations
+from cvlab.gui.custom_utils import save_img_annotations
 
 
 def start_inference(frame_data, exp: Experiment):

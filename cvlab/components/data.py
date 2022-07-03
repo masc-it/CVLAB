@@ -214,14 +214,14 @@ class Experiment(object):
 
 
     def add_image(self, img_info: ImageInfo, load_annotations=False):
-        from custom_utils import load_img_annotations
+        from cvlab.gui.custom_utils import load_img_annotations
         self.imgs.append(img_info)
         if load_annotations:
             load_img_annotations(img_info)
     
     def _load_images(self, load_annotations = True):
         import glob, os
-        from custom_utils import load_img_annotations
+        from cvlab.gui.custom_utils import load_img_annotations
         self.imgs = []
         for img in glob.glob(f"{self.data_path}/*.*"):
             name_ext = os.path.basename(img).rsplit('.')
