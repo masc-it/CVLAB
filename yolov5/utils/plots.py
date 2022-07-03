@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 
 import cv2
-import matplotlib
+
 import numpy as np
 import torch
 from PIL import Image, ImageDraw, ImageFont
@@ -18,8 +18,7 @@ from .general import (LOGGER, clip_coords, increment_path, is_ascii, is_chinese,
 # Settings
 CONFIG_DIR = user_config_dir()  # Ultralytics settings dir
 RANK = int(os.getenv('RANK', -1))
-matplotlib.rc('font', **{'size': 11})
-matplotlib.use('Agg')  # for writing to files only
+
 
 
 class Colors:
