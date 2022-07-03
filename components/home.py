@@ -94,7 +94,7 @@ def header_lab():
     if scale_changed:
         frame_data["scale_changed"] = True
     
-    if frame_data["io"].mouse_pos[0] > frame_data["viewport"][0] - 60:
+    if frame_data["io"].mouse_pos[0] > frame_data["viewport"][0] - frame_data["scroll_right_margin"]:
         #frame_data["prev_cursor"] = glfw.ARROW_CURSOR
         glfw.set_cursor(frame_data["glfw"]["window"], glfw.create_standard_cursor(glfw.VRESIZE_CURSOR))
     else:
@@ -102,7 +102,7 @@ def header_lab():
 
     mouse_wheel = frame_data["io"].mouse_wheel
     if frame_data["is_dialog_open"] == False and mouse_wheel != 0 and frame_data["io"].mouse_pos[0] > frame_data["x_offset"] and\
-        frame_data["io"].mouse_pos[0] < frame_data["viewport"][0] - 60:
+        frame_data["io"].mouse_pos[0] < frame_data["viewport"][0] - frame_data["scroll_right_margin"]:
         frame_data["img_scale"] += 0.2 if mouse_wheel > 0 else -0.2
         frame_data["img_scale"] = min(4.0, frame_data["img_scale"])
         frame_data["img_scale"] = max(0.5, frame_data["img_scale"])
@@ -120,10 +120,11 @@ def _files_list(frame_data, img_render_id):
     project : Project = frame_data["project"]
     img_data = frame_data["imgs_to_render"][img_render_id]
     
+    padding = 20
     # add 20 more (scrollbar)
-    frame_data["x_offset"] = int(frame_data["viewport"][0] / 5) + 20
+    frame_data["x_offset"] = int(frame_data["viewport"][0] / 5) + padding
     
-    imgui.begin_child(label="files_list", width=frame_data["x_offset"] - 20, height=-1, border=False, )
+    imgui.begin_child(label="files_list", width=frame_data["x_offset"] - padding, height=-1, border=False, )
     
     for collection_id in project.collections:
 
@@ -213,8 +214,6 @@ def _files_list(frame_data, img_render_id):
 
                 
             imgui.tree_pop()
-
-    
 
     imgui.end_child()
     imgui.same_line(position=frame_data["x_offset"])

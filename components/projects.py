@@ -12,7 +12,7 @@ import custom_utils
 
 class Project(object):
     
-    page_status : dict = {}
+   
 
     def __init__(self, name:str, info_obj: dict, project_path:str) -> None:
         self.name = name
@@ -21,6 +21,8 @@ class Project(object):
         self.model_path = info_obj["model_path"]
         self.labels_obj = info_obj["labels"]
         self.project_path = project_path
+        
+        self.page_status : dict = {}
 
         self.imgs : dict[str, dict[str, ImageInfo]] = {}
         self.collections : dict[str, CollectionInfo]= {}
@@ -157,6 +159,31 @@ class Project(object):
                         json.dump(data, fp, indent=1 )
                     img_info.set_changed(False)
 
+    def save_all_bounding_boxes(self, out_path: Path):
+
+        out_path.mkdir(exist_ok=True)
+
+        for collection in self.collections.values():
+            for img_name in self.imgs[collection.id]:
+                img_info : ImageInfo = self.imgs[collection.id][img_name]
+
+                img = Image.open(img_info.path).convert("RGB")
+                img_path = Path(img_info.path)
+                for i, bbox in enumerate(img_info.bboxes):
+
+                    class_name = self.labels.labels_map[bbox.label].label 
+                    random_name = f"{collection.name}_{img_path.stem}_{i}"
+                    p_dir = (out_path / class_name)
+                    p_dir.mkdir(exist_ok=True)
+
+                    crop_path = (p_dir / random_name ).with_suffix(".jpg")
+
+                    crop = img.crop((math.ceil(bbox.xmin), math.ceil(bbox.ymin), math.ceil(bbox.xmax), math.ceil(bbox.ymax)))
+                    crop.save(crop_path)
+
+                print(f"SAVED -{img_info.path}")
+
+
     """ def save_settings(self):
 
         labels = list(map(lambda x : x.as_obj(), self.labels))
@@ -265,8 +292,8 @@ class Project(object):
                     continue
                 img_bytes = image2byte_array(img.path)
                 
-                zf.writestr( f"dataset/{splits[i]}/images/{img.name}.{img.ext}", img_bytes)
-                zf.writestr( f"dataset/{splits[i]}/labels/{img.name}.txt", img.export_bboxes())
+                zf.writestr( f"dataset/{splits[i]}/images/{img.collection_info.name}_{img.name}.{img.ext}", img_bytes)
+                zf.writestr( f"dataset/{splits[i]}/labels/{img.collection_info.name}_{img.name}.txt", img.export_bboxes())
                 #zf.writestr( f"imgs/{splits[i]}/{img.name}.{img.ext}", img_bytes)
                 #zf.writestr( f"annotations/{splits[i]}/{img.name}.txt", img.export_bboxes())
 
@@ -287,6 +314,16 @@ def load_projects():
     
     return projects
 
+def load_projects2(project_base_path):
+
+    projects = []
+    for p in Path(project_base_path).glob("*"):
+        
+        with open(p / "info.json", "r") as fp:
+            info_obj = json.load(fp)
+        projects.append(Project(os.path.basename(p), info_obj, p))
+    
+    return projects
 
 if __name__ == "__main__":
     for p in load_projects():

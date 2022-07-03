@@ -37,7 +37,9 @@ class PseudoClassifier(object):
 
         onnx_model = onnx.load(onnx_model_path.as_posix())
         onnx.checker.check_model(onnx_model)
-        self.onnx_model = onnxruntime.InferenceSession(onnx_model_path.as_posix())
+        session_option = onnxruntime.SessionOptions()
+        session_option.enable_mem_pattern = False
+        self.onnx_model = onnxruntime.InferenceSession(onnx_model_path.as_posix(), sess_options=session_option, providers=['DmlExecutionProvider', 'CPUExecutionProvider'])
 
     @staticmethod 
     def to_numpy(tensor):

@@ -69,7 +69,6 @@ class BBox(object):
 
 class ImageInfo(object):
 
-    bboxes : list[BBox] = []
     prev_scale = 0.0
     scale = 1.0
     is_changed = False
@@ -78,7 +77,7 @@ class ImageInfo(object):
         self.ext = extension
         self.collection_info = collection_info
         self.path = collection_info.path + f"/{self.name}.{extension}"
-        self.bboxes = []
+        self.bboxes : list[BBox] = []
         self._set_size()
     
     def add_bbox(self, bbox: BBox):
@@ -161,10 +160,11 @@ class LabelInfo(object):
         }
 
 class Labels(object):
-    labels : list[LabelInfo] = []
-    
-    labels_map : dict[str, LabelInfo] = {}
-    shortcuts : dict[str, LabelInfo] = {}
+
+    def __init__(self) -> None:
+        self.labels : list[LabelInfo]= []
+        self.labels_map : dict[str, LabelInfo] = {}
+        self.shortcuts : dict[str, LabelInfo]= {}
 
     def add_label(self, label: LabelInfo):
         self.labels.append(label)

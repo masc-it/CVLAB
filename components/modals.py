@@ -41,6 +41,7 @@ def show_export_modal(frame_data,):
 
     if imgui.begin_popup_modal("Export progress",  )[0]: # imgui.WINDOW_NO_RESIZE
 
+        frame_data["is_dialog_open"] = True
         imgui.begin_table("export_t", 4, outer_size_height=0, flags=imgui.TABLE_SIZING_STRETCH_SAME|imgui.TABLE_RESIZABLE)
 
         imgui.table_setup_column("Collection", )
@@ -54,8 +55,12 @@ def show_export_modal(frame_data,):
         if frame_data["export_table"] == {}:
             for i, coll in enumerate(project.collections.values()):
                 frame_data["export_table"][coll] = [False] * 3
-                if i <= 2:
-                    frame_data["export_table"][coll][i] = True
+                #if i <= 2:
+                #    frame_data["export_table"][coll][i] = True
+                if "train" in coll.name.lower():
+                    frame_data["export_table"][coll][0] = True
+                else:
+                    frame_data["export_table"][coll][2] = True
         
         if frame_data["export_counts"] == {}:
             update_ds_split_count(frame_data)
@@ -97,13 +102,14 @@ def show_export_modal(frame_data,):
             index = frame_data["export_progress"]
             total = frame_data["export_counts"]["splits"][collection_name]
             imgui.text(f"{collection_name}: {index}/{total}")
-            imgui.progress_bar(index * 10 / total, size=(-1, 0.0),)
+            imgui.progress_bar(index / total, size=(-1, 0.0),)
         
         
         imgui.same_line()
         close_clicked = imgui.button("Close")
         if close_clicked:
             frame_data["export_collection"] = None
+            frame_data["is_dialog_open"] = False
             imgui.close_current_popup()
         imgui.end_popup()
 

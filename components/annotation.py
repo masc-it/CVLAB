@@ -24,19 +24,25 @@ def _annotation_screen(frame_data, img_render_id, allow_edit=True):
     print("vp: " + str(imgui.get_main_viewport().size))
     print( "avail: " + str(imgui.get_content_region_available())) """
     
-    imgui.begin_child(label="img_preview", width=0, height=0, border=False,)
-    frame_data["y_offset"] = imgui.get_main_viewport().size.y - imgui.get_content_region_available().y - 8 # frame_data["y_offset_auto_ann"]
+    imgui.begin_child(label="img_preview", width=0, height=0, border=False, flags=imgui.WINDOW_HORIZONTAL_SCROLLING_BAR )
+    
+    padding = 8
+
+    if img_data["texture"] is not None and img_data["scaled_width"] > imgui.get_content_region_available().x:
+        padding = 22 # 8 + 14 = h_scrollbar height
+    
+    frame_data["y_offset"] = imgui.get_main_viewport().size.y - imgui.get_content_region_available().y - padding # frame_data["y_offset_auto_ann"]
     if img_data["texture"] is not None:
         imgui.image(img_data["texture"], img_data["scaled_width"], img_data["scaled_height"])
     draw_list : imgui._DrawList = imgui.get_window_draw_list()
     
-    if frame_data["is_editing"] == False and (frame_data["io"].mouse_pos[0] <= frame_data["x_offset"] or \
-       frame_data["io"].mouse_pos[1] <= frame_data["y_offset"] ) :
+    if img_data["texture"] is not None and frame_data["is_editing"] == False and (frame_data["io"].mouse_pos[0] <= frame_data["x_offset"] or \
+       frame_data["io"].mouse_pos[1] <= frame_data["y_offset"] or frame_data["io"].mouse_pos[1] >= img_data["scaled_height"] + frame_data["y_offset"]) :
         labeling["was_mouse_down"] = False
         labeling["new_box_requested"] = False
         labeling["curr_bbox"] = None
     # new bbox requested, was drawing a box and mouse is released => save bbox
-    if labeling["curr_bbox"] is not None and frame_data["is_editing"] == False and allow_edit and not imgui.is_mouse_down() and labeling["was_mouse_down"] and labeling["new_box_requested"]:
+    if labeling["curr_bbox"] is not None and frame_data["is_editing"] == False and allow_edit and labeling["was_mouse_down"] and labeling["new_box_requested"] and not imgui.is_mouse_down() :
         labeling["was_mouse_down"] = False
         #labeling["new_box_requested"] = False
         labeling["curr_bbox"].width = abs(labeling["curr_bbox"].xmax - labeling["curr_bbox"].xmin)
@@ -65,18 +71,18 @@ def _annotation_screen(frame_data, img_render_id, allow_edit=True):
         labeling["was_mouse_down"] = True
         curr_bbox : BBox = labeling["curr_bbox"]
         if curr_bbox is None:
-            # save coords relative to the image
+            # save coords relative to the image, not app 
             curr_bbox = BBox(
-                frame_data["io"].mouse_pos[0] - frame_data["x_offset"],
-                frame_data["io"].mouse_pos[1] + imgui.get_scroll_y() - frame_data["y_offset"],
+                frame_data["io"].mouse_pos[0] - frame_data["x_offset"] + imgui.get_scroll_x(),
+                frame_data["io"].mouse_pos[1] - frame_data["y_offset"] + imgui.get_scroll_y(),
                 0,
                 0,
                 frame_data["labeling"]["selected_label"]
             )
             labeling["curr_bbox"] = curr_bbox
         
-        curr_bbox.xmax = frame_data["io"].mouse_pos[0] - frame_data["x_offset"]
-        curr_bbox.ymax = frame_data["io"].mouse_pos[1] + imgui.get_scroll_y() - frame_data["y_offset"]
+        curr_bbox.xmax = frame_data["io"].mouse_pos[0] - frame_data["x_offset"] + imgui.get_scroll_x()
+        curr_bbox.ymax = frame_data["io"].mouse_pos[1] - frame_data["y_offset"] + imgui.get_scroll_y() 
         # convert image coords to screen coords
 
         # prevent to draw boxes right-2-left
@@ -85,10 +91,10 @@ def _annotation_screen(frame_data, img_render_id, allow_edit=True):
         if curr_bbox.xmax - curr_bbox.xmin > MIN_BBOX_SIZE and\
            curr_bbox.ymax - curr_bbox.ymin > MIN_BBOX_SIZE : # bboxes must have at least 5px width/height
             draw_list.add_rect(
-                curr_bbox.xmin + frame_data["x_offset"], 
-                curr_bbox.ymin - imgui.get_scroll_y() +  frame_data["y_offset"], 
-                curr_bbox.xmax + frame_data["x_offset"], 
-                curr_bbox.ymax - imgui.get_scroll_y() +  frame_data["y_offset"], 
+                curr_bbox.xmin + frame_data["x_offset"] - imgui.get_scroll_x(), 
+                curr_bbox.ymin +  frame_data["y_offset"] - imgui.get_scroll_y() , 
+                curr_bbox.xmax + frame_data["x_offset"] - imgui.get_scroll_x(), 
+                curr_bbox.ymax  +  frame_data["y_offset"] - imgui.get_scroll_y(), 
                 imgui.get_color_u32_rgba(*project.labels.labels_map[curr_bbox.label].rgb, 255), 
                 thickness=1)
             img_info.set_changed(True)
@@ -134,6 +140,8 @@ def _annotation_screen(frame_data, img_render_id, allow_edit=True):
             
             # duplicate bbox
             if imgui.is_key_pressed(glfw.KEY_D) and labeling["curr_bbox"] is not None:
+                
+                labeling["new_box_requested"] = False
                 xmin = labeling["curr_bbox"].xmax + 3
                 xmax = xmin + labeling["curr_bbox"].width
 
@@ -235,7 +243,7 @@ def get_iou(bbox1:BBox, bbox2: BBox):
         return iou
 def start_autoann(frame_data, img_info: ImageInfo, img_path: Path):
     
-    predictions = detect.run(weights="D:/Download/letters_best.pt", imgsz=[1280, 1280], conf_thres=0.12, iou_thres=0.5, save_conf=True,
+    predictions = detect.run(weights="D:/Download/letters_best0207.pt", imgsz=[1280, 1090], conf_thres=0.1, iou_thres=0.5, save_conf=True,
                 exist_ok=True, save_txt=False, source=img_path, project=None, name=None,)
 
     for _, (bboxes, img)  in enumerate(predictions):
@@ -308,20 +316,21 @@ def __check_bbox(bbox : BBox, frame_data :dict, img_info: ImageInfo):
 
 
 def _handle_bbox_drag(frame_data, labeling, img_info: ImageInfo):
-    if labeling["curr_bbox"] is not None and img_info is not None and imgui.is_mouse_down():
+    if labeling["curr_bbox"] is not None and img_info is not None and\
+       frame_data["io"].mouse_pos[0] < frame_data["viewport"][0] - frame_data["scroll_right_margin"] and imgui.is_mouse_down():
 
         mouse_pos_x = frame_data["io"].mouse_pos[0]
         mouse_pos_y = frame_data["io"].mouse_pos[1]
         if not labeling["was_drawing"]:
             labeling["was_drawing"] = True
             # save relative mouse offset
-            labeling["x_offset"] = labeling["curr_bbox"].width - ( labeling["curr_bbox"].xmax + frame_data["x_offset"] - mouse_pos_x  )  
+            labeling["x_offset"] = labeling["curr_bbox"].width - ( labeling["curr_bbox"].xmax + frame_data["x_offset"] - imgui.get_scroll_x() - mouse_pos_x  )  
             labeling["y_offset"] = labeling["curr_bbox"].height - (labeling["curr_bbox"].ymax - mouse_pos_y + frame_data["y_offset"] - imgui.get_scroll_y()) 
  
         mouse_pos_x -= labeling["x_offset"]
         mouse_pos_y -= labeling["y_offset"]
 
-        new_xmin = mouse_pos_x - frame_data["x_offset"]
+        new_xmin = mouse_pos_x - frame_data["x_offset"] + imgui.get_scroll_x()
         if new_xmin >= 0 and new_xmin + labeling["curr_bbox"].width < img_info.scaled_w:
             labeling["curr_bbox"].xmin = max(0, new_xmin)
         
@@ -329,7 +338,7 @@ def _handle_bbox_drag(frame_data, labeling, img_info: ImageInfo):
         if new_xmax <= img_info.scaled_w:
             labeling["curr_bbox"].xmax = min(img_info.scaled_w, new_xmax)
 
-        new_ymin = mouse_pos_y + imgui.get_scroll_y() - frame_data["y_offset"]
+        new_ymin = mouse_pos_y - frame_data["y_offset"] + imgui.get_scroll_y() 
 
         if new_ymin >= 0 and new_ymin + labeling["curr_bbox"].height < img_info.scaled_h:        
             labeling["curr_bbox"].ymin = max(0, new_ymin)  #frame_data["io"].mouse_pos[1] + imgui.get_scroll_y() - frame_data["y_offset"] - labeling["curr_bbox"]["height"]/2 # -(labeling["curr_bbox"]["y_max"] - frame_data["io"].mouse_pos[1] )  #
@@ -356,8 +365,8 @@ def _handle_bbox_resize(frame_data, labeling, img_info: ImageInfo):
     #    is_mouse_on_bbox_border( labeling["curr_bbox"], frame_data)
     if imgui.is_mouse_down(1) and labeling["curr_bbox"] is not None:
 
-        labeling["curr_bbox"].xmax = frame_data["io"].mouse_pos[0] - frame_data["x_offset"]
-        labeling["curr_bbox"].ymax = frame_data["io"].mouse_pos[1] + imgui.get_scroll_y() - frame_data["y_offset"]
+        labeling["curr_bbox"].xmax = frame_data["io"].mouse_pos[0] - frame_data["x_offset"] + imgui.get_scroll_x()
+        labeling["curr_bbox"].ymax = frame_data["io"].mouse_pos[1] - frame_data["y_offset"] + imgui.get_scroll_y()
         
         # prevent to draw boxes right-2-left
         __check_bbox(labeling["curr_bbox"], frame_data, img_info)
@@ -374,26 +383,26 @@ def _refresh_bboxes(frame_data, labeling, project: Project, draw_list, img_rende
 
     for bbox in img_info.bboxes:
         
+        # convert to app coordinates
         draw_list.add_rect(
-            bbox.xmin + frame_data["x_offset"], 
-            bbox.ymin - imgui.get_scroll_y() +  frame_data["y_offset"], 
-            bbox.xmax + frame_data["x_offset"], 
-            bbox.ymax - imgui.get_scroll_y() +  frame_data["y_offset"], 
+            bbox.xmin + frame_data["x_offset"] - imgui.get_scroll_x(), 
+            bbox.ymin +  frame_data["y_offset"] - imgui.get_scroll_y(), 
+            bbox.xmax + frame_data["x_offset"] - imgui.get_scroll_x(), 
+            bbox.ymax +  frame_data["y_offset"] - imgui.get_scroll_y() , 
             imgui.get_color_u32_rgba(*project.labels.labels_map[bbox.label].rgb, 255),
             thickness=1
         )
 
-
         draw_list.add_rect_filled(
-            bbox.xmin + frame_data["x_offset"], 
-            bbox.ymin - 12 - imgui.get_scroll_y() +  frame_data["y_offset"], 
-            bbox.xmax + frame_data["x_offset"], 
-            bbox.ymin - imgui.get_scroll_y() +  frame_data["y_offset"], 
+            bbox.xmin + frame_data["x_offset"] - imgui.get_scroll_x(), 
+            bbox.ymin - 12 +  frame_data["y_offset"] - imgui.get_scroll_y(), 
+            bbox.xmax + frame_data["x_offset"] - imgui.get_scroll_x(), 
+            bbox.ymin  +  frame_data["y_offset"] - imgui.get_scroll_y(), 
             imgui.get_color_u32_rgba(*project.labels.labels_map[bbox.label].rgb, 255)
         )
 
         imgui.set_cursor_screen_pos(
-            (bbox.xmin + frame_data["x_offset"],
+            (bbox.xmin + frame_data["x_offset"] - imgui.get_scroll_x(),
             bbox.ymin - 14 - imgui.get_scroll_y() +  frame_data["y_offset"]
             )
         )
@@ -401,8 +410,8 @@ def _refresh_bboxes(frame_data, labeling, project: Project, draw_list, img_rende
             project.labels.labels_map[bbox.label].label[:3]
         )
 
-        if not frame_data["is_dialog_open"] and imgui.get_mouse_pos()[0] >= bbox.xmin + frame_data["x_offset"]  and\
-            imgui.get_mouse_pos()[0] <= bbox.xmax + frame_data["x_offset"]  and\
+        if not frame_data["is_dialog_open"] and imgui.get_mouse_pos()[0] >= bbox.xmin + frame_data["x_offset"] - imgui.get_scroll_x() and\
+            imgui.get_mouse_pos()[0] <= bbox.xmax + frame_data["x_offset"] - imgui.get_scroll_x() and\
             imgui.get_mouse_pos()[1] >= bbox.ymin - imgui.get_scroll_y() +  frame_data["y_offset"]  and\
             imgui.get_mouse_pos()[1] <=  bbox.ymax - imgui.get_scroll_y() +  frame_data["y_offset"] :
             

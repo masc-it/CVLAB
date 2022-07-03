@@ -1,3 +1,9 @@
 *.c
 __pycache__/
-projects/
+projects*/
+runs*/
+venv_*/
+build/
+dist/
+*.pt
+*.onnx

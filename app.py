@@ -160,7 +160,7 @@ def on_frame():
     if frame_data["export_click"]:
         frame_data["export_click"] = False
         imgui.open_popup("Export progress")
-        imgui.set_next_window_size(600, 300)
+        imgui.set_next_window_size(600, 600)
     
     modals.show_export_modal(frame_data,)
 
