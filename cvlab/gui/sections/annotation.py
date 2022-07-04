@@ -332,6 +332,13 @@ class Annotator(Component):
         return False
 
     def __refresh_bboxes(self, draw_list):
+
+        """
+            Draw bboxes on screen where aach bbox has a rectangular label on top.
+
+            - Handles bbox hovering
+
+        """
         found = []
         
         for bbox in self.image_data.img_info.bboxes:
@@ -364,6 +371,7 @@ class Annotator(Component):
                 self.project.labels.labels_map[bbox.label].label[:3]
             )
 
+            # handle bbox hovering
             if not self.app.is_dialog_open and imgui.get_mouse_pos()[0] >= bbox.xmin + self.x_offset - imgui.get_scroll_x() and\
                 imgui.get_mouse_pos()[0] <= bbox.xmax + self.x_offset - imgui.get_scroll_x() and\
                 imgui.get_mouse_pos()[1] >= bbox.ymin - imgui.get_scroll_y() +  self.app.y_offset  and\
@@ -388,7 +396,11 @@ class Annotator(Component):
             glfw.set_cursor(self.app.glfw["window"], glfw.create_standard_cursor(glfw.ARROW_CURSOR))
     
     def __handle_interaction(self,):
-
+        """
+            - Handle bbox dragging (Left mouse button)
+            - Handle bbox resize   (Right mouse button)
+            - Keyboard shortcuts
+        """
         if not self.app.is_dialog_open: # self.allow_edit and 
             self.__handle_bbox_drag()
             self.__handle_bbox_resize()
@@ -528,7 +540,9 @@ class Annotator(Component):
         bbox.update_size()
     
     def __dialog_label_selection(self, bbox: BBox):
-
+        """
+            Dialog to manually select/edit a bbox label.
+        """
         if imgui.begin_popup_modal("Label", flags=imgui.WINDOW_NO_RESIZE )[0]: # imgui.WINDOW_NO_RESIZE
 
             imgui.begin_child(label="labels_listt", width=300, height=500, border=False, )
@@ -549,7 +563,7 @@ class Annotator(Component):
     # AUTO ANNOTATION / CLASSIFICATION
 
     def add_bboxes_to_kb(self):
-
+        
         img_info_path = Path(self.image_data.img_info.path)
 
         img = PILImage.open(img_info_path).convert("RGB")
