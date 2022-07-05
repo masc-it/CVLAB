@@ -497,11 +497,11 @@ class Annotator(Component):
             self.file_list_state.is_open = not self.file_list_state.is_open
 
             if self.file_list_state.is_open:
-                self.app.padding = 20
+                self.app.padding = 20 # 8 + 12
                 self.x_offset = int(self.app.viewport[0] / 5.5) + self.app.padding
             else:
                 self.app.padding = 8
-                self.x_offset = self.app.padding  # int(self.app.viewport[0] / 7) + self.app.padding 
+                self.x_offset = self.app.padding  # int(self.app.viewport[0] / 5.5) + self.app.padding 
             #print(self.x_offset)
 
         # delete bbox on BACKSPACE PRESS

@@ -12,28 +12,56 @@ import cvlab.gui.custom_utils as custom_utils
 
 class Project(object):
     
-    def __init__(self, name:str, info_obj: dict, project_path:str) -> None:
+    def __init__(self, name:str, info_obj: list[str], project_path:str) -> None:
         self.name = name
         self.info_obj = info_obj
-        self.collections_obj : dict = info_obj["collections"]
+        self.collections_obj : list[str] = info_obj["collections"]
         self.model_path = info_obj["model_path"]
         self.labels_obj = info_obj["labels"]
         self.project_path = project_path
         
-        self.page_status : dict = {}
-
-        self.imgs : dict[str, dict[str, ImageInfo]] = {}
-        self.collections : dict[str, CollectionInfo]= {}
-        self.labels : Labels = self.load_labels()
-
-        self.experiments : dict[str, Experiment] = {}
-        self.load_experiments()
+        self.setup_project()
         
-
     def __str__(self) -> str:
         return json.dumps(self.info_obj, indent=1)
     
+    def setup_project(self, init = False):
+        self.imgs : dict[str, dict[str, ImageInfo]]  = {}
+        self.collections : dict[str, CollectionInfo]= {}
+        self.labels : Labels = self.load_labels()
+        self.experiments : dict[str, Experiment] = {}
+        self.load_experiments()
+
+        if init:
+            self.init_project()
+
     def init_project(self):
+
+        for base_dir in self.collections_obj:
+
+            base_dir_path = Path(base_dir)
+
+            dirs = filter(lambda x: x.is_dir(), base_dir_path.glob("*"))
+
+            for dir in dirs:
+                
+                data_path = dir
+                collection_name = dir.stem
+                collection_id = collection_name.replace(" ", "_")
+
+                coll_info = CollectionInfo(collection_name, collection_id, data_path.as_posix())
+                self.collections[collection_id] = coll_info
+                self.imgs[collection_id] = {}
+
+                (data_path / "annotations/").mkdir(exist_ok=True)
+
+                # init imgs dict with imgs in data_path
+                for f in data_path.glob("*.jpg"):
+                    img_name = f.stem
+                    img_ext = f.suffix.replace(".", "")
+                    self.imgs[collection_id][img_name] = ImageInfo(img_name, img_ext, coll_info)
+        self.load_annotations()
+        """     def init_project(self):
         for p in self.collections_obj:
             collection = self.collections_obj[p]
             data_path = collection["data_path"]
@@ -50,7 +78,7 @@ class Project(object):
                 img_name = name_ext[0]
                 img_ext = name_ext[1]
                 self.imgs[collection_id][img_name] = ImageInfo(img_name, img_ext, coll_info)
-        self.load_annotations()        
+        self.load_annotations()   """      
     
     def get_collection(self, collection_id: str) -> CollectionInfo:
         return self.collections[collection_id]
@@ -296,11 +324,13 @@ class Project(object):
     def load_projects():
 
         projects = []
-        for p in glob.glob("projects/*"):
+        for p in Path("projects/").glob("*"):
             
-            with open(p + "/info.json", "r") as fp:
+            if not p.is_dir():
+                continue
+            with open(p / "info2.json", "r") as fp:
                 info_obj = json.load(fp)
-            projects.append(Project(os.path.basename(p), info_obj, p))
+            projects.append(Project(p.stem, info_obj, p.as_posix()))
         
         return projects
 
