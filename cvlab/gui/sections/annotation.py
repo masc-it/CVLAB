@@ -3,7 +3,7 @@ import math
 from pathlib import Path
 from threading import Thread
 
-from cvlab.model.data import BBox
+from cvlab.model.data import BBox, ImageInfo
 from cvlab.model.app import App, FileList, Labeling
 from cvlab.gui.base import Component
 from threading import Thread
@@ -21,6 +21,7 @@ class Annotator(Component):
     def __init__(self, app: App, ) -> None:
         super().__init__(app)
 
+        self.x_offset = None
         self.scroll_right_margin = 60
 
         self.labeling = Labeling()
@@ -54,11 +55,14 @@ class Annotator(Component):
         )
 
     def main(self):
-        self.x_offset = int(self.app.viewport[0] / 5) + self.app.padding
+        if self.x_offset is None:
+            self.x_offset = int(self.app.viewport[0] / 5.5) + self.app.padding
 
         self.__options_menu()
+
         self.__files_list()
         self.__annotator()
+
 
     def __options_menu(self, ):
 
@@ -133,92 +137,111 @@ class Annotator(Component):
 
         state = self.file_list_state
         w = self.x_offset - self.app.padding
-        imgui.begin_child(label="files_list", width=w, height=-1, border=False, )
-        
-        for collection_id in self.project.collections:
 
-            collection_open = imgui.tree_node(self.project.collections[collection_id].name)
-            if imgui.is_item_hovered():
-                dd_info, _ = self.project.get_data_distribution()
-                imgui.set_tooltip(f"Num. samples: {dd_info[self.project.collections[collection_id].name]['tot']}\nSplit Ratio: {dd_info[self.project.collections[collection_id].name]['ratio']:.2f}%")
+        if self.file_list_state.is_open:
+            imgui.begin_child(label="files_list", width=w, height=-1, border=False, )
             
-            if collection_open:
+            for collection_id in self.project.collections:
+
+                collection_open = imgui.tree_node(self.project.collections[collection_id].name)
+                if imgui.is_item_hovered():
+                    dd_info, _ = self.project.get_data_distribution()
+                    imgui.set_tooltip(f"Num. samples: {dd_info[self.project.collections[collection_id].name]['tot']}\nSplit Ratio: {dd_info[self.project.collections[collection_id].name]['ratio']:.2f}%")
+                
+                if collection_open:
+                    state.open_collection_id = collection_id
+                    imgs = self.project.get_images(collection_id)
+                    
+                    self.__options_controls(collection_id, imgs)
+                        
+                    imgui.tree_pop()
+
+            imgui.end_child()
+            imgui.same_line(position=self.x_offset)
+        else:
+            if state.open_collection_id is None:
+                state.open_collection_id = list(self.project.collections.keys())[0]
+            for collection_id in self.project.collections:
                 imgs = self.project.get_images(collection_id)
-                key_pressed = 0
 
-                if imgui.is_key_pressed(glfw.KEY_DOWN):
-                    
-                    key_pressed = 1
+                if collection_id == state.open_collection_id: 
+                    self.__options_controls(collection_id, imgs)
+                        
+    
+    def __options_controls(self, collection_id : str, imgs : "list[ImageInfo]"):
+        
+        state = self.file_list_state
+        key_pressed = 0
+
+        if imgui.is_key_pressed(glfw.KEY_DOWN):
+            
+            key_pressed = 1
+        
+        if imgui.is_key_pressed(glfw.KEY_UP):
+            key_pressed = -1
+        
+        if key_pressed != 0:
+
+            state.idx += key_pressed
+
+            if state.idx == len(imgs) - 1:
+                state.idx = 0
+            elif state.idx < 0:
+                state.idx = 0
+            
+            img_i = imgs[state.idx]
+
+            name = img_i.name
+            #img_data["scale"] = frame_data["img_scale"]
+
+            self.image_data.scale_changed = True
+            base_p = name
+            print(base_p)
+
+            self.image_data.name = name
+            #self.project.save_annotations()
+            
+            self.image_data.img_info = img_i
+            state.collection_id = collection_id
+            
+            state.name = base_p
+            if self.image_data.scale_changed:
+                self.image_data.scale_changed = False
+                self.image_data.img_info.change_scale(self.image_data.scale)
+            
+            self.image_data.has_changed = True
+
+        for i, img_info in enumerate(imgs):
+
+            # img_info = project.imgs[k]
+            name = img_info.name
+
+            if self.file_list_state.is_open:
+                clicked, _ = imgui.selectable(
+                            label=name + (" OK" if len(img_info.bboxes) > 0 else "") , selected=(state.idx == i and state.collection_id == collection_id)
+                        )
+            else: 
+                clicked = False
+
+            if clicked or self.image_data.scale_changed:
                 
-                if imgui.is_key_pressed(glfw.KEY_UP):
-                    key_pressed = -1
-                
-                if key_pressed != 0:
-
-                    state.idx += key_pressed
-
-                    if state.idx == len(imgs) - 1:
-                        state.idx = 0
-                    elif state.idx < 0:
-                        state.idx = 0
-                    
-                    img_i = imgs[state.idx]
-
-                    name = img_i.name
-                    #img_data["scale"] = frame_data["img_scale"]
+                if clicked:
+                    self.app.btn_down_pressed = False
 
                     self.image_data.scale_changed = True
                     base_p = name
-                    print(base_p)
-
                     self.image_data.name = name
                     #self.project.save_annotations()
                     
-                    self.image_data.img_info = img_i
+                    self.image_data.img_info = img_info
                     state.collection_id = collection_id
-                    
+                    state.idx = i
                     state.name = base_p
-                    if self.image_data.scale_changed:
-                        self.image_data.scale_changed = False
-                        self.image_data.img_info.change_scale(self.image_data.scale)
-                    
-                    self.image_data.has_changed = True
-
-
-                for i, img_info in enumerate(imgs):
-
-                    # img_info = project.imgs[k]
-                    name = img_info.name
-                    clicked, _ = imgui.selectable(
-                                label=name + (" OK" if len(img_info.bboxes) > 0 else "") , selected=(state.idx == i and state.collection_id == collection_id)
-                            )
-
-                    if clicked or self.image_data.scale_changed:
-                        
-                        if clicked:
-                            self.app.btn_down_pressed = False
-
-                            self.image_data.scale_changed = True
-                            base_p = name
-                            self.image_data.name = name
-                            #self.project.save_annotations()
-                            
-                            self.image_data.img_info = img_info
-                            state.collection_id = collection_id
-                            state.idx = i
-                            state.name = base_p
-                        if self.image_data.scale_changed:
-                            self.image_data.scale_changed = False
-                            self.image_data.img_info.change_scale(self.image_data.scale)
-                        
-                        self.image_data.has_changed = True
-                    
-                imgui.tree_pop()
-
-        imgui.end_child()
-        imgui.same_line(position=self.x_offset)
-    
-
+                if self.image_data.scale_changed:
+                    self.image_data.scale_changed = False
+                    self.image_data.img_info.change_scale(self.image_data.scale)
+                
+                self.image_data.has_changed = True
     def __annotator(self):
         
         """
@@ -469,11 +492,23 @@ class Annotator(Component):
     
     def __handle_shortcuts(self):
 
+        # print(self.app.io.mouse_pos)
+        if imgui.is_key_pressed(glfw.KEY_LEFT_CONTROL):
+            self.file_list_state.is_open = not self.file_list_state.is_open
+
+            if self.file_list_state.is_open:
+                self.app.padding = 20
+                self.x_offset = int(self.app.viewport[0] / 5.5) + self.app.padding
+            else:
+                self.app.padding = 8
+                self.x_offset = self.app.padding  # int(self.app.viewport[0] / 7) + self.app.padding 
+            #print(self.x_offset)
+
         # delete bbox on BACKSPACE PRESS
         if imgui.is_key_pressed(glfw.KEY_BACKSPACE) and self.labeling.curr_bbox is not None:
             self.image_data.img_info.bboxes.remove(self.labeling.curr_bbox)
             self.labeling.curr_bbox = None
-            self.image_data.img_info.set_changed(True)            
+            self.image_data.img_info.set_changed(True)
                 
         """ for i in self.project.labels.shortcuts:
             if i == "":

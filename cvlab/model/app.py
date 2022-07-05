@@ -45,6 +45,10 @@ class FileList(object):
         self.image_width : int = None
         self.image_height : int = None
 
+        self.is_open = True
+
+        self.open_collection_id = None
+
 class App(object):
     """
         Main class containing the whole application state.
