@@ -1,5 +1,6 @@
 
 from __future__ import annotations
+import math
 import os, glob, json
 from pathlib import Path
 from cvlab.model.data import *
@@ -315,5 +316,5 @@ def load_projects2(project_base_path):
     return projects
 
 if __name__ == "__main__":
-    for p in load_projects():
+    for p in Project.load_projects():
         print(p)
