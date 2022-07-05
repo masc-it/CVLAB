@@ -1,5 +1,5 @@
 from __future__ import annotations
-import math
+
 from PIL import Image
 from copy import deepcopy
 import os, glob

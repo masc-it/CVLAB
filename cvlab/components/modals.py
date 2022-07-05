@@ -38,7 +38,6 @@ def export_process(frame_data, ):
 
 def show_export_modal(frame_data,):
 
-
     if imgui.begin_popup_modal("Export progress",  )[0]: # imgui.WINDOW_NO_RESIZE
 
         frame_data["is_dialog_open"] = True

@@ -3,7 +3,7 @@ from components.data import ImageInfo
 from variables import frame_data
 from .auto_annotation import header_auto_annotation, auto_ann_content
 import glfw
-from .projects import Project
+from ..model.project import Project
 from . import annotation, settings
 
 def header():

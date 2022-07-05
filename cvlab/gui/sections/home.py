@@ -1,10 +1,12 @@
 
-from cvlab.gui.app import App
+from cvlab.model.app import App
 from cvlab.gui.base import Component
 
 import imgui
 
 from cvlab.gui.sections.annotation import Annotator
+from cvlab.gui.sections.data_info import DataInfo
+from cvlab.gui.sections.settings import Settings
 
 class Home(Component):
 
@@ -12,6 +14,9 @@ class Home(Component):
         super().__init__(app)
 
         self.annotation_screen = Annotator(self.app)
+
+        self.data_info_screen = DataInfo(self.app)
+        self.settings_screen = Settings(self.app)
 
 
     def main(self):
@@ -29,22 +34,21 @@ class Home(Component):
                 
                 imgui.end_tab_item()
             
-            if imgui.begin_tab_item("Auto annotation")[0]:
-                #print(imgui.get_mouse_pos())
-                #frame_data["y_offset"] = imgui.get_main_viewport().size.y - imgui.get_content_region_available().y - 8 # frame_data["y_offset_auto_ann"]
-                
-                #header_auto_annotation(frame_data)
-                #auto_ann_content(frame_data)
-                
-                imgui.end_tab_item()
-            
-            if imgui.begin_tab_item("Settings & Info")[0]:
+            if imgui.begin_tab_item("Data Info")[0]:
 
-                project = self.project
+                imgui.begin_child(label="datainfo_section", border=False, )
+                
+                self.data_info_screen.main()
+
+                imgui.end_child()
+                imgui.end_tab_item()
+
+            if imgui.begin_tab_item("Settings")[0]:
+
                 imgui.begin_child(label="setting_section", border=False, )
-                #settings.settings_labels(project.labels)
-                #settings.settings_dd()
-                #settings.settings_label_distribution()
+                
+                self.settings_screen.main()
+
                 imgui.end_child()
                 imgui.end_tab_item()
             imgui.end_tab_bar()

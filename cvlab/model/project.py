@@ -1,19 +1,16 @@
 
 from __future__ import annotations
-import os, glob, json,sys
+import os, glob, json
 from pathlib import Path
-from components.data import *
+from cvlab.model.data import *
 from typing import Generator, Any
 import zipfile
 from io import BytesIO
 
-sys.path.append("./")  # add ROOT to PATH
 import cvlab.gui.custom_utils as custom_utils
 
 class Project(object):
     
-   
-
     def __init__(self, name:str, info_obj: dict, project_path:str) -> None:
         self.name = name
         self.info_obj = info_obj
@@ -264,12 +261,6 @@ class Project(object):
 
     def export(self, ds_split_map: dict[int, list[ImageInfo]]):
 
-        # TODO: add annotations in yolo format
-        # zip format:
-        #  - imgs
-        #    - train, test, valid
-        #  - annotations
-        #    - train, test, valid
         def image2byte_array(path):
             imgByteArr = BytesIO()
             image = Image.open(path).convert("RGB")
@@ -294,25 +285,23 @@ class Project(object):
                 
                 zf.writestr( f"dataset/{splits[i]}/images/{img.collection_info.name}_{img.name}.{img.ext}", img_bytes)
                 zf.writestr( f"dataset/{splits[i]}/labels/{img.collection_info.name}_{img.name}.txt", img.export_bboxes())
-                #zf.writestr( f"imgs/{splits[i]}/{img.name}.{img.ext}", img_bytes)
-                #zf.writestr( f"annotations/{splits[i]}/{img.name}.txt", img.export_bboxes())
-
-                yield splits[i], img.name
+              
+                yield splits[i]
 
         zf.close()
 
 
+    @staticmethod
+    def load_projects():
 
-def load_projects():
-
-    projects = []
-    for p in glob.glob("projects/*"):
+        projects = []
+        for p in glob.glob("projects/*"):
+            
+            with open(p + "/info.json", "r") as fp:
+                info_obj = json.load(fp)
+            projects.append(Project(os.path.basename(p), info_obj, p))
         
-        with open(p + "/info.json", "r") as fp:
-            info_obj = json.load(fp)
-        projects.append(Project(os.path.basename(p), info_obj, p))
-    
-    return projects
+        return projects
 
 def load_projects2(project_base_path):
 

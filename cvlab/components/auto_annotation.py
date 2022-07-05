@@ -1,7 +1,7 @@
 from pathlib import Path
-from .data import *
+from ..model.data import *
 import imgui
-from .projects import Project
+from ..model.project import Project
 from yolov5 import detect
 import  os
 import threading

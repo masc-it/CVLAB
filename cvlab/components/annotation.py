@@ -1,8 +1,8 @@
 from pathlib import Path
 from threading import Thread
 import imgui
-from .data import *
-from .projects import Project
+from ..model.data import *
+from ..model.project import Project
 import glfw
 import numpy as np
 from yolov5 import detect

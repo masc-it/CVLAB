@@ -3,8 +3,8 @@ import math
 from pathlib import Path
 from threading import Thread
 from cvlab.autoannotate_utils.unsupervised_classification import PseudoClassifier
-from cvlab.components.data import BBox
-from cvlab.gui.app import App, FileList, Image, Labeling
+from cvlab.model.data import BBox
+from cvlab.model.app import App, FileList, Labeling
 from cvlab.gui.base import Component
 
 import imgui
@@ -563,7 +563,7 @@ class Annotator(Component):
     # AUTO ANNOTATION / CLASSIFICATION
 
     def add_bboxes_to_kb(self):
-        
+
         img_info_path = Path(self.image_data.img_info.path)
 
         img = PILImage.open(img_info_path).convert("RGB")
@@ -589,10 +589,6 @@ class Annotator(Component):
         img = PILImage.open(self.image_data.img_info.path).convert("RGB")
         scaled_bbox = bbox.scale((self.image_data.img_info.w, self.image_data.img_info.h), (self.image_data.img_info.orig_w, self.image_data.img_info.orig_h))
         crop = img.crop((math.ceil(scaled_bbox.xmin), math.ceil(scaled_bbox.ymin), math.ceil(scaled_bbox.xmax), math.ceil(scaled_bbox.ymax)))
-        
-        """ random_name = f"{round(time.time()*1000)}"
-        crop_path = (classifier.kb_path / random_name ).with_suffix(".jpg")
-        crop.save(crop_path) """
 
         label, _, _ = self.classifier.predict_label(img_path=crop)
         if label is not None:
@@ -638,7 +634,7 @@ class Annotator(Component):
     
     def start_autoann(self, img_path: Path):
         
-        predictions = detect.run(weights="D:/Download/letters_best0207.pt", imgsz=[1280, 1090], conf_thres=0.1, iou_thres=0.5, save_conf=True,
+        predictions = detect.run(weights="D:/Download/letters_best0207.pt", imgsz=[1280, 1090], conf_thres=0.2, iou_thres=0.5, save_conf=True,
                     exist_ok=True, save_txt=False, source=img_path, project=None, name=None,)
 
         for _, (bboxes, img)  in enumerate(predictions):

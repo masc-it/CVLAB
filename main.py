@@ -13,23 +13,32 @@ import OpenGL.GL as gl
 from stb import image as im
 import imgui
 
-from components import projects as Projects #, modals
+from cvlab.model.project import Project
 import ctypes
-import cvlab.gui.custom_utils as custom_utils
 
-from cvlab.gui.app import App
+from cvlab.model.app import App
 from cvlab.gui.sections.home import Home
 
+from cvlab.gui.dialogs.export import ExportDatasetDialog
 myappid = 'mascit.app.cvlab' # arbitrary string
 ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
 app = App()
-#home = Home(app)
+
 home = None
+
+exportDialog = None
+
+def fb_to_window_factor(window):
+    win_w, win_h = glfw.get_window_size(window)
+    fb_w, fb_h = glfw.get_framebuffer_size(window)
+
+    return max(float(fb_w) / win_w, float(fb_h) / win_h)
 
 def main_glfw():
     global app
     global home
+    global exportDialog
 
     def glfw_init():
         width, height = 1024, 900
@@ -57,7 +66,7 @@ def main_glfw():
     
     imgui.create_context()
     io = imgui.get_io()
-    io.config_flags |= imgui.CONFIG_DOCKING_ENABLE
+    #io.config_flags |= imgui.CONFIG_DOCKING_ENABLE
 
     window = glfw_init()
     impl = GlfwRenderer(window)
@@ -69,7 +78,7 @@ def main_glfw():
     glfw.set_window_icon(window, 1, [(x.shape[1],x.shape[0], x)])
     
     io.fonts.clear()
-    font_scaling_factor = custom_utils.fb_to_window_factor(window)
+    font_scaling_factor = fb_to_window_factor(window)
     io.font_global_scale = 1. / font_scaling_factor
     
     font_config = imgui.FontConfig(oversample_h=4.0, oversample_v=4.0, rasterizer_multiply=0.9)
@@ -84,20 +93,21 @@ def main_glfw():
     
     app.io = imgui.get_io()
 
-    projects = Projects.load_projects()
+    projects = Project.load_projects()
 
-    app.project : Projects.Project = projects[0]
+    app.project : Project = projects[0]
     app.project.init_project()
 
     home = Home(app)
-    #project.load_annotations()
+    exportDialog = ExportDatasetDialog(app)
+
     while not glfw.window_should_close(window):
         glfw.poll_events()
         impl.process_inputs()
 
         # load image textures if needed
         # this must be done before the on_frame call
-        custom_utils.load_images(app)
+        app.load_images()
        
         imgui.new_frame()
         viewport = imgui.get_main_viewport().size
@@ -118,11 +128,11 @@ def main_glfw():
 
 # backend-independent frame rendering function:
 
-
 def on_frame():
     global app
     global home
-
+    global exportDialog
+    
     if imgui.begin_main_menu_bar():
         if imgui.begin_menu("File", True):
             clicked_quit, selected_quit = imgui.menu_item(
@@ -155,7 +165,7 @@ def on_frame():
         imgui.open_popup("Export progress")
         imgui.set_next_window_size(600, 600)
     
-    #modals.show_export_modal(app)
+    exportDialog.main()
     
     home.main()
 

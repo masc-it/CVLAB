@@ -1,5 +1,5 @@
 
-from .app import App
+from cvlab.model.app import App
 
 class Component(object):
     """
