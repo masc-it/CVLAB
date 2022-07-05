@@ -35,6 +35,7 @@ def fb_to_window_factor(window):
 
     return max(float(fb_w) / win_w, float(fb_h) / win_h)
 
+
 def main_glfw():
     global app
     global home
@@ -52,6 +53,7 @@ def main_glfw():
         glfw.window_hint(glfw.OPENGL_PROFILE, glfw.OPENGL_CORE_PROFILE)
         glfw.window_hint(glfw.OPENGL_FORWARD_COMPAT, gl.GL_TRUE)
         glfw.window_hint(glfw.REFRESH_RATE, 60)
+        glfw.window_hint(glfw.MAXIMIZED, True)
         # Create a windowed mode window and its OpenGL context
         window = glfw.create_window(
             int(width), int(height), window_name, None, None
@@ -135,17 +137,25 @@ def on_frame():
     
     if imgui.begin_main_menu_bar():
         if imgui.begin_menu("File", True):
-            clicked_quit, selected_quit = imgui.menu_item(
-                "Quit", 'Cmd+Q', False, True
+            clicked_reload, _ = imgui.menu_item(
+                "Reload", None, False, True
             )
-            if clicked_quit:
-                exit(1)
+            if clicked_reload:
+                app.project.setup_project(init=True)
+                home = Home(app)
+                exportDialog = ExportDatasetDialog(app)
+            
             clicked_export, _ = imgui.menu_item(
                 "Export", None, False, True
             )
             if clicked_export:
                 app.export_dialog_click = True
-                
+            
+            clicked_quit, selected_quit = imgui.menu_item(
+                "Quit", 'Cmd+Q', False, True
+            )
+            if clicked_quit:
+                exit(1)
                 
             imgui.end_menu()
         imgui.end_main_menu_bar()
