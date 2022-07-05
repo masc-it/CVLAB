@@ -1,6 +1,7 @@
 
 import math
 from pathlib import Path
+import subprocess
 from threading import Thread
 
 from cvlab.model.data import BBox, ImageInfo
@@ -11,8 +12,10 @@ import imgui
 import glfw
 import numpy as np
 from cvlab.yolov5 import detect
-
+import os
 from PIL import Image as PILImage
+import sys
+FILEBROWSER_PATH = os.path.join(os.getenv('WINDIR'), 'explorer.exe')
 
 MIN_BBOX_SIZE = 5
 
@@ -39,7 +42,7 @@ class Annotator(Component):
         self.is_editing = False
         self.allow_edit = False
         self.interaction_bbox : BBox = None
-
+        self.is_opening_file = False
         self.classifier = None
         
         t = Thread(target=self.__setup_pseudo_classifier)
@@ -199,7 +202,7 @@ class Annotator(Component):
             print(base_p)
 
             self.image_data.name = name
-            #self.project.save_annotations()
+            self.project.save_annotations()
             
             self.image_data.img_info = img_i
             state.collection_id = collection_id
@@ -219,9 +222,13 @@ class Annotator(Component):
             if self.file_list_state.is_open:
                 clicked, _ = imgui.selectable(
                             label=name + (" OK" if len(img_info.bboxes) > 0 else "") , selected=(state.idx == i and state.collection_id == collection_id)
+                            
                         )
             else: 
                 clicked = False
+
+            if imgui.is_item_hovered() and imgui.is_key_pressed(glfw.KEY_F):
+                self.explore(img_info.path)
 
             if clicked or self.image_data.scale_changed:
                 
@@ -231,7 +238,7 @@ class Annotator(Component):
                     self.image_data.scale_changed = True
                     base_p = name
                     self.image_data.name = name
-                    #self.project.save_annotations()
+                    self.project.save_annotations()
                     
                     self.image_data.img_info = img_info
                     state.collection_id = collection_id
@@ -294,7 +301,7 @@ class Annotator(Component):
             - Edit an existing bbox dragging your right mouse button.
         
         """
-        if self.image_data.texture is not None and (self.app.io.mouse_pos[0] <= self.x_offset or \
+        if not self.app.is_dialog_open and self.image_data.texture is not None and (self.app.io.mouse_pos[0] <= self.x_offset or \
             self.app.io.mouse_pos[1] <= self.app.y_offset or self.app.io.mouse_pos[1] >= self.image_data.img_info.scaled_h + self.app.y_offset) :
                 self.labeling.was_mouse_down = False
                 self.labeling.new_box_requested = False
@@ -586,14 +593,15 @@ class Annotator(Component):
             Dialog to manually select/edit a bbox label.
         """
         if imgui.begin_popup_modal("Label", flags=imgui.WINDOW_NO_RESIZE )[0]: # imgui.WINDOW_NO_RESIZE
-
+            
+            self.app.is_dialog_open = True
             imgui.begin_child(label="labels_listt", width=300, height=500, border=False, )
 
             for label in self.project.labels:
-                #print(i)
+
                 clicked, _ = imgui.selectable(
-                                    label=label.label , selected=(bbox.label == label.index)
-                                )
+                    label=label.label , selected=(bbox.label == label.index)
+                )
                 if clicked:
                     bbox.label = label.index
                     self.image_data.img_info.set_changed(True)
@@ -718,3 +726,18 @@ class Annotator(Component):
 
         t = Thread(target=(self.start_autoann), args=(Path("lmao.jpg"), ))
         t.start()
+    
+    def explore(self, path):
+        
+        if sys.platform == "win32":
+            # explorer would choke on forward slashes
+            path = os.path.normpath(path)
+
+            if os.path.isdir(path):
+                subprocess.run([FILEBROWSER_PATH, path])
+            elif os.path.isfile(path):
+                subprocess.run([FILEBROWSER_PATH, '/select,', path])
+        elif sys.platform == 'linux2':
+            subprocess.run(["xdg-open", path])
+        elif sys.platform == 'darwin':
+            subprocess.call(["open", "-R", path])
