@@ -2,11 +2,11 @@
 import math
 from pathlib import Path
 from threading import Thread
-from cvlab.autoannotate_utils.unsupervised_classification import PseudoClassifier
+
 from cvlab.model.data import BBox
 from cvlab.model.app import App, FileList, Labeling
 from cvlab.gui.base import Component
-
+from threading import Thread
 import imgui
 import glfw
 import numpy as np
@@ -39,12 +39,19 @@ class Annotator(Component):
         self.allow_edit = False
         self.interaction_bbox : BBox = None
 
+        self.classifier = None
+        
+        t = Thread(target=self.__setup_pseudo_classifier)
+        t.start()
+
+    
+    def __setup_pseudo_classifier(self):
+        from cvlab.autoannotate_utils.unsupervised_classification import PseudoClassifier
         self.classifier = PseudoClassifier(
             Path("D:\\Documenti\\models\\ukb\\effnet2_tiny_128_simclr.onnx"),
             kb_path = Path("D:\\Documenti\\datasets\\ssl_ukb\\kb_letters\\"),
             features_size = 1024
         )
-    
 
     def main(self):
         self.x_offset = int(self.app.viewport[0] / 5) + self.app.padding
@@ -508,8 +515,8 @@ class Annotator(Component):
             self.image_data.img_info.bboxes.append(bbox_copy)
         
         if imgui.is_key_pressed(glfw.KEY_SPACE) and self.labeling.curr_bbox is not None:
-            auto_classify_label = -1
-            #auto_classify_label = auto_classify(frame_data, labeling["curr_bbox"], img_info)
+
+            auto_classify_label = self.auto_classify(self.labeling.curr_bbox)
             if auto_classify_label != -1:
                 self.labeling.curr_bbox.label = auto_classify_label
                 self.auto_classify_label = -1
