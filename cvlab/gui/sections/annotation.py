@@ -185,7 +185,7 @@ class Annotator(Component):
                 state.idx = 0
             
             img_i = imgs[state.idx]
-
+            
             name = img_i.name
             #img_data["scale"] = frame_data["img_scale"]
 
@@ -197,6 +197,8 @@ class Annotator(Component):
             self.project.save_annotations()
             
             self.image_data.img_info = img_i
+            if self.image_data.img_info.w is None:
+                self.image_data.img_info._set_size()
             state.collection_id = collection_id
             
             state.name = base_p
@@ -225,6 +227,7 @@ class Annotator(Component):
             if clicked or self.image_data.scale_changed:
                 
                 if clicked:
+                    
                     self.app.btn_down_pressed = False
 
                     self.image_data.scale_changed = True
@@ -233,6 +236,8 @@ class Annotator(Component):
                     self.project.save_annotations()
                     
                     self.image_data.img_info = img_info
+                    if self.image_data.img_info.w is None:
+                        self.image_data.img_info._set_size()
                     state.collection_id = collection_id
                     state.idx = i
                     state.name = base_p

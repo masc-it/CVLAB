@@ -78,7 +78,9 @@ class ImageInfo(object):
         self.collection_info = collection_info
         self.path = collection_info.path + f"/{self.name}.{extension}"
         self.bboxes : list[BBox] = []
-        self._set_size()
+
+        self.w = None
+        # self._set_size()
     
     def add_bbox(self, bbox: BBox):
         self.bboxes.append(bbox)
