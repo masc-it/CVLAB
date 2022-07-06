@@ -1,3 +1,5 @@
+import json
+from pathlib import Path
 import time
 import os
 import sys
@@ -15,8 +17,9 @@ from cvlab.model.project import Project
 
 from cvlab.model.app import App
 from cvlab.gui.sections.home import Home
-
+from cvlab.autoannotate_utils.unsupervised_classification import PseudoClassifier
 from cvlab.gui.dialogs.export import ExportDatasetDialog
+
 if sys.platform == "win32":
     import ctypes
     myappid = 'mascit.app.cvlab'
@@ -64,7 +67,30 @@ def main_glfw():
             print("Could not initialize Window")
             exit(1)
         return window
+
+
+    print("Initializing...")
+    projects = Project.load_projects()
     
+    for i, project in enumerate(projects):
+        print(f"{i+1} - {project.name}", end="\n", flush=True)
+    
+    print("Project index -> ", end="")
+
+    proj_idx = int(input())
+
+    proj_idx = max(1, proj_idx)
+    app.project : Project = projects[proj_idx-1]
+    app.project.init_project()
+
+    if app.project.pseudo_classifier is not None:
+        print("Loading Pseudo Classifier..")
+        app.classifier = PseudoClassifier(
+            Path(app.project.pseudo_classifier.model_path),
+            kb_path = Path(app.project.pseudo_classifier.kb_path),
+            features_size = app.project.pseudo_classifier.features_shape
+        )
+
     imgui.create_context()
     io = imgui.get_io()
     #io.config_flags |= imgui.CONFIG_DOCKING_ENABLE
@@ -96,10 +122,6 @@ def main_glfw():
     
     app.io = imgui.get_io()
 
-    projects = Project.load_projects()
-
-    app.project : Project = projects[0]
-    app.project.init_project()
 
     home = Home(app)
     exportDialog = ExportDatasetDialog(app)

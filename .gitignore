@@ -1,5 +1,6 @@
 *.c
 __pycache__/
+cvlab_projects/
 projects*/
 runs*/
 venv_*/

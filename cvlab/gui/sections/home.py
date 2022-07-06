@@ -30,12 +30,19 @@ class Home(Component):
 
             if imgui.begin_tab_item("LAB")[0]:
 
+                if self.app.settings_changed:
+                    self.app.settings_changed = False
+                    self.project.update_labels(save=True)
                 self.annotation_screen.main()
                 
                 imgui.end_tab_item()
             
             if imgui.begin_tab_item("Data Info")[0]:
 
+                if self.app.settings_changed:
+                    self.app.settings_changed = False
+                    self.project.update_labels(save=True)
+                    
                 imgui.begin_child(label="datainfo_section", border=False, )
                 
                 self.data_info_screen.main()

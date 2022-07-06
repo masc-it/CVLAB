@@ -2,14 +2,13 @@ import imgui
 from cvlab.model.app import App
 from cvlab.gui.base import Component
 from cvlab.model.data import Labels
-from cvlab.model.project import Project
 
 
 class Settings(Component):
     def __init__(self, app: App) -> None:
         super().__init__(app)
         
-        self.settings_changed = False
+        self.app.settings_changed = False
 
     def main(self):
         
@@ -17,7 +16,7 @@ class Settings(Component):
 
     def __labels_section(self, labels : Labels):
         
-        self.settings_changed = False
+        #self.app.settings_changed = False
         imgui.dummy(10,10)
         imgui.push_font(self.app.fonts["roboto_large"])
         imgui.text(" Labels")
@@ -37,7 +36,10 @@ class Settings(Component):
             imgui.text(str(label_obj.index))
             imgui.table_set_column_index(1)
             imgui.push_item_width(-1)
-            _,label_obj.label= imgui.input_text(label=f"lab_{label_obj.index}", value=label_obj.label, buffer_length=128)
+            _,new_label= imgui.input_text(label=f"lab_{label_obj.index}", value=label_obj.label, buffer_length=128)
+            if new_label != label_obj.label and new_label != "":
+                label_obj.label = new_label
+                self.app.settings_changed = True
             imgui.pop_item_width()
             imgui.table_set_column_index(2)
             
@@ -46,7 +48,7 @@ class Settings(Component):
                         imgui.COLOR_EDIT_NO_LABEL|imgui.COLOR_EDIT_NO_INPUTS|imgui.COLOR_EDIT_INPUT_RGB
                 )
             if clicked:
-                self.settings_changed = True
+                self.app.settings_changed = True
             imgui.table_set_column_index(3)
             imgui.push_item_width(-1)
             short_changed, shortcut= imgui.input_text(label=f"shortcut_{label_obj.index}", value=label_obj.shortcut, buffer_length=2)
@@ -57,15 +59,15 @@ class Settings(Component):
                         del labels.shortcuts[label_obj.shortcut] # del old shortcut
                         label_obj.shortcut = shortcut
                         labels.shortcuts[shortcut] = label_obj
-                    self.settings_changed = True
+                    self.app.settings_changed = True
                 except:
                     pass
                 
             imgui.pop_item_width()
             
-            if self.settings_changed:
-                self.settings_changed = False
-                self.project.update_labels(save=True)
+            """ if self.app.settings_changed:
+                self.app.settings_changed = False
+                self.project.update_labels(save=True) """
                 
         imgui.end_table()
         imgui.separator()

@@ -76,8 +76,10 @@ class App(object):
         self.is_dialog_open = False
 
         self.auto_annotate = False
-
+        self.classifier = None
         self.btn_down_pressed = False
+
+        self.settings_changed = False
         # ------ ANNOTATOR -------------
 
         self.image_data = Image()

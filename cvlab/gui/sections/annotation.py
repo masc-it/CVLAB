@@ -15,9 +15,11 @@ from cvlab.yolov5 import detect
 import os
 from PIL import Image as PILImage
 import sys
+
 FILEBROWSER_PATH = os.path.join(os.getenv('WINDIR'), 'explorer.exe')
 
 MIN_BBOX_SIZE = 5
+
 
 class Annotator(Component):
 
@@ -43,20 +45,8 @@ class Annotator(Component):
         self.allow_edit = False
         self.interaction_bbox : BBox = None
         self.is_opening_file = False
-        self.classifier = None
+        self.classifier = self.app.classifier
         
-        if self.project.pseudo_classifier is not None:
-            t = Thread(target=self.__setup_pseudo_classifier)
-            t.start()
-
-    
-    def __setup_pseudo_classifier(self):
-        from cvlab.autoannotate_utils.unsupervised_classification import PseudoClassifier
-        self.classifier = PseudoClassifier(
-            Path(self.project.pseudo_classifier.model_path),
-            kb_path = Path(self.project.pseudo_classifier.kb_path),
-            features_size = self.project.pseudo_classifier.features_shape
-        )
 
     def main(self):
         if self.x_offset is None:

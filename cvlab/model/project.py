@@ -9,7 +9,11 @@ import zipfile
 from io import BytesIO
 from collections import namedtuple
 
+from tqdm.auto import tqdm
+
 import cvlab.gui.custom_utils as custom_utils
+
+CVLAB_PROJECTS_DIR = "cvlab_projects/"
 
 class Project(object):
     
@@ -44,22 +48,27 @@ class Project(object):
         self.collections : dict[str, CollectionInfo]= {}
         self.labels : Labels = self.load_labels()
         self.experiments : dict[str, Experiment] = {}
-        self.load_experiments()
+        #self.load_experiments()
 
         if init:
             self.init_project()
 
     def init_project(self):
+        
+        print(f"\nLABELS: {list(map(lambda x: x.label, self.labels))}")
 
+        print("\nInit images metadata...")
         for base_dir in self.collections_obj:
 
             base_dir_path = Path(base_dir)
 
-            dirs = filter(lambda x: x.is_dir(), base_dir_path.glob("*"))
+            dirs = list(filter(lambda x: x.is_dir(), base_dir_path.glob("*")))
 
-            for dir in dirs:
+            pbar = tqdm(dirs)
+            for dir in pbar:
                 
-                data_path = dir
+                pbar.set_postfix({"collection": base_dir, "dir": dir.stem})
+                data_path : Path = dir
                 collection_name = dir.stem
                 collection_id = collection_name.replace(" ", "_")
 
@@ -75,24 +84,7 @@ class Project(object):
                     img_ext = f.suffix.replace(".", "")
                     self.imgs[collection_id][img_name] = ImageInfo(img_name, img_ext, coll_info)
         self.load_annotations()
-        """     def init_project(self):
-        for p in self.collections_obj:
-            collection = self.collections_obj[p]
-            data_path = collection["data_path"]
-            collection_name = collection["name"]
-            collection_id = collection["name"].lower().replace(" ", "_")
-
-            coll_info = CollectionInfo(collection_name, collection_id, data_path)
-            self.collections[collection_id] = coll_info
-            self.imgs[collection_id] = {}
-            os.makedirs(data_path + "/annotations", exist_ok=True)
-            # init imgs dict with imgs in data_path
-            for f in glob.glob(data_path + "/*.jpg"):
-                name_ext = os.path.basename(f).rsplit('.')
-                img_name = name_ext[0]
-                img_ext = name_ext[1]
-                self.imgs[collection_id][img_name] = ImageInfo(img_name, img_ext, coll_info)
-        self.load_annotations()   """      
+     
     
     def get_collection(self, collection_id: str) -> CollectionInfo:
         return self.collections[collection_id]
@@ -109,9 +101,10 @@ class Project(object):
             img_info.add_bboxes(bboxes)
             self.imgs[name] = img_info
             
-            if not os.path.exists(f"projects/{self.name}/annotations/{name}.json"):
+            ann_path = (Path( CVLAB_PROJECTS_DIR ) / self.name / "annotations" / name).with_suffix(".json")
+            if not ann_path.exists():
                 bboxes_list = list(map(lambda x: x.as_obj(), bboxes))
-                with open(f"projects/{self.name}/annotations/{name}.json", "w") as fp:
+                with open(ann_path, "w") as fp:
                     data = {"img_path": img_path, "bboxes": bboxes_list}
                     json.dump(data, fp, indent=1)
     
@@ -155,7 +148,6 @@ class Project(object):
                 obj["shortcut"])
             labels.add_label(l)
         
-        print(list(map(lambda x: x.label, labels)))
         return labels
     
     def update_labels(self, save=True):
@@ -169,20 +161,18 @@ class Project(object):
             self.save_config()
 
     def save_config(self):
-        with open(f"projects/{self.name}/info.json", "w") as fp:
+        cfg_file_path = (Path(CVLAB_PROJECTS_DIR) / self.name / "info").with_suffix(".json")
+        with open(cfg_file_path, "w") as fp:
             json.dump(self.info_obj, fp, indent=1)
 
-    def load_json_annotation(self, img_name):
+    def load_json_annotation(self, img_name : str):
 
-        with open(f"projects/{self.name}/annotations/{img_name}.json", "r") as fp:
+        ann_path = (Path( CVLAB_PROJECTS_DIR ) / self.name / "annotations" / img_name).with_suffix(".json")
+        with open(ann_path, "r") as fp:
             annotations = json.load(fp)
         
         return annotations
     
-    def set_changed(self, img_name):
-
-        self.page_status[img_name] = True
-
     def save_annotations(self,):
         
         for collection in self.collections.values():
@@ -335,18 +325,99 @@ class Project(object):
 
 
     @staticmethod
-    def load_projects():
+    def load_projects() -> list[Project]:
 
-        projects = []
-        for p in Path("projects/").glob("*"):
+        _projects = []
+        for p in Path(CVLAB_PROJECTS_DIR).glob("*"):
             
             if not p.is_dir():
                 continue
-            with open(p / "info2.json", "r") as fp:
+
+            with open(p / "info.json", "r") as fp:
                 info_obj = json.load(fp)
-            projects.append(Project(p.stem, info_obj, p.as_posix()))
+            _projects.append(Project(p.stem, info_obj, p.as_posix()))
         
-        return projects
+        return _projects
+    
+    @staticmethod
+    def setup_new_project():
+        print("Project Name -> ", end = "")
+        project_name = input()
+
+        projects_dir = Path(CVLAB_PROJECTS_DIR)
+        project_dir = (projects_dir / project_name)
+
+        try:
+            project_dir.mkdir(parents=True)
+        except:
+            print("Project name already exists.")
+            return
+
+        print("Data collection paths (comma separated) -> ", end = "")
+        collections = input().split(",")
+
+        for collection in collections:
+            coll = Path(collection)
+            if not coll.exists():
+                print(f"{coll.as_posix()} does NOT exist.")
+                return
+        print("Number of classes -> ", end = "")
+        num_classes = int(input())
+        num_classes = max(1, num_classes)
+
+        labels = {}
+        """
+        "labels": {
+            "0": {
+            "index": "0",
+            "label": "A",
+            "rgb": [
+                235,
+                64,
+                52
+            ],
+            "shortcut": "1"
+            },
+        """
+        for i in range(num_classes):
+            label = {
+                "index": str(i),
+                "label": "A",
+                "rgb": [
+                    235,
+                    64,
+                    52
+                ],
+                "shortcut": str(i+1) if i < 9 else ""
+            }
+            labels[str(i)] = label
+        
+        print("Object detection model path (Enter to skip) -> ", end = "")
+        od_model_path = input()
+        if not od_model_path:
+            od_model_path = ""
+        
+        print("ONNX Classification model path (Enter to skip) -> ", end = "")
+        classifier_path = input()
+        pseudo_classifier = {}
+        if classifier_path:
+            pseudo_classifier["model_path"] = classifier_path
+            print("Knowledge base path -> ", end = "")
+            pseudo_classifier["kb_path"] = input()
+            print("Features shape -> ", end = "")
+            pseudo_classifier["features_shape"] = int(input())
+
+        info_obj = {
+            "collections": collections,
+            "od_model_path": od_model_path,
+            "pseudo_classifier": pseudo_classifier,
+            "labels": labels
+        }
+
+        with open( (project_dir / "info.json"), "w" ) as fp:
+            json.dump(info_obj, fp, indent=2)
+        
+        print(f"{project_name} has been successfully setup. You can customize your labels directly in CVLAB.")
 
 def load_projects2(project_base_path):
 
