@@ -15,6 +15,7 @@ import imgui
 
 from cvlab.model.project import Project
 
+import cvlab
 from cvlab.model.app import App
 from cvlab.gui.sections.home import Home
 from cvlab.autoannotate_utils.unsupervised_classification import PseudoClassifier
@@ -24,6 +25,9 @@ if sys.platform == "win32":
     import ctypes
     myappid = 'mascit.app.cvlab'
     ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+
+base_p = Path(os.path.dirname(cvlab.__file__))
+gui_data = base_p / "gui_data/"
 
 app = App()
 
@@ -101,7 +105,7 @@ def main_glfw():
 
     app.glfw = {"io": io, "window": window, "previous_cursor": glfw.ARROW_CURSOR}
 
-    x = im.load('chip.png')
+    x = im.load((gui_data /'chip.png').as_posix())
     glfw.set_window_icon(window, 1, [(x.shape[1],x.shape[0], x)])
     
     io.fonts.clear()
@@ -110,11 +114,11 @@ def main_glfw():
     
     # default font
     font_config = imgui.FontConfig(oversample_h=2.0, oversample_v=2.0, rasterizer_multiply=0.9)
-    io.fonts.add_font_from_file_ttf("Roboto-Regular.ttf", 18, font_config, io.fonts.get_glyph_ranges_default())
+    io.fonts.add_font_from_file_ttf( (gui_data / "Roboto-Regular.ttf").as_posix(), 18, font_config, io.fonts.get_glyph_ranges_default())
 
     # headers font
     roboto_large = io.fonts.add_font_from_file_ttf(
-        "Roboto-Regular.ttf", 30, imgui.FontConfig(oversample_h=2.0, oversample_v=2.0 )
+        (gui_data / "Roboto-Regular.ttf").as_posix(), 30, imgui.FontConfig(oversample_h=2.0, oversample_v=2.0 )
     )
     app.fonts["roboto_large"] = roboto_large
 
