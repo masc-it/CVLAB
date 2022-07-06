@@ -7,6 +7,7 @@ from cvlab.model.data import *
 from typing import Generator, Any
 import zipfile
 from io import BytesIO
+from collections import namedtuple
 
 import cvlab.gui.custom_utils as custom_utils
 
@@ -16,7 +17,20 @@ class Project(object):
         self.name = name
         self.info_obj = info_obj
         self.collections_obj : list[str] = info_obj["collections"]
-        self.model_path = info_obj["model_path"]
+        
+        self.od_model_path = info_obj["od_model_path"] if info_obj["od_model_path"] != "" else None
+        
+        self.pseudo_classifier = None
+
+        if info_obj["pseudo_classifier"] != {}:
+            PseudoClassifier = namedtuple("PseudoClassifier", "model_path kb_path features_shape")
+
+            self.pseudo_classifier = PseudoClassifier(
+                info_obj["pseudo_classifier"]["model_path"], 
+                info_obj["pseudo_classifier"]["kb_path"],
+                info_obj["pseudo_classifier"]["features_shape"]
+            )
+
         self.labels_obj = info_obj["labels"]
         self.project_path = project_path
         

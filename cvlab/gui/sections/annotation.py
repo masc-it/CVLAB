@@ -45,16 +45,17 @@ class Annotator(Component):
         self.is_opening_file = False
         self.classifier = None
         
-        t = Thread(target=self.__setup_pseudo_classifier)
-        t.start()
+        if self.project.pseudo_classifier is not None:
+            t = Thread(target=self.__setup_pseudo_classifier)
+            t.start()
 
     
     def __setup_pseudo_classifier(self):
         from cvlab.autoannotate_utils.unsupervised_classification import PseudoClassifier
         self.classifier = PseudoClassifier(
-            Path("D:\\Documenti\\models\\ukb\\effnet2_tiny_128_simclr.onnx"),
-            kb_path = Path("D:\\Documenti\\datasets\\ssl_ukb\\kb_letters\\"),
-            features_size = 1024
+            Path(self.project.pseudo_classifier.model_path),
+            kb_path = Path(self.project.pseudo_classifier.kb_path),
+            features_size = self.project.pseudo_classifier.features_shape
         )
 
     def main(self):
@@ -79,7 +80,7 @@ class Annotator(Component):
 
         """
 
-        annotate_click = imgui.button("New box" if not self.labeling.new_box_requested else "Cancel")        
+        annotate_click = imgui.button("New box (N)" if not self.labeling.new_box_requested else "Cancel")        
 
         if annotate_click or imgui.is_key_pressed(glfw.KEY_N):
             self.labeling.new_box_requested = not self.labeling.new_box_requested
@@ -93,21 +94,23 @@ class Annotator(Component):
 
         imgui.same_line()
 
-        autoannotate_click = imgui.button("Auto annotate" if not self.auto_annotate else "Draw box")
-        if imgui.is_key_pressed(glfw.KEY_A):
-            if self.labeling.new_box_requested == False:
-                self.labeling.new_box_requested = (not self.labeling.new_box_requested)
-            self.auto_annotate = (not self.auto_annotate)
-        imgui.same_line()
+        if self.project.od_model_path is not None:
+            autoannotate_click = imgui.button("Auto annotate (A)" if not self.auto_annotate else "Draw box..")
+            if imgui.is_key_pressed(glfw.KEY_A):
+                if self.labeling.new_box_requested == False:
+                    self.labeling.new_box_requested = (not self.labeling.new_box_requested)
+                self.auto_annotate = (not self.auto_annotate)
+            imgui.same_line()
 
-        autoclassify_click = imgui.button("Add boxes to KB")
-        if autoclassify_click:
-           self.add_bboxes_to_kb()
+        if self.project.pseudo_classifier is not None:
+            autoclassify_click = imgui.button("Add boxes to KB")
+            if autoclassify_click:
+                self.add_bboxes_to_kb()
 
-        imgui.same_line()
+            imgui.same_line()
         
         scale_changed, self.image_data.scale = imgui.slider_float(
-                    label="Zoom",
+                    label="Zoom (Mouse wheel)",
                     value=self.image_data.scale,
                     min_value=0.5,
                     max_value=4.0,
@@ -319,7 +322,7 @@ class Annotator(Component):
                 self.image_data.img_info.bboxes.append(self.labeling.curr_bbox)
                 self.image_data.img_info.set_changed(True)
             
-                pseudo_label = self.auto_classify(self.labeling.curr_bbox)
+                pseudo_label = self.auto_classify(self.labeling.curr_bbox) if self.classifier is not None else -1
 
                 if pseudo_label != -1:
                     self.labeling.curr_bbox.label = pseudo_label
@@ -328,6 +331,7 @@ class Annotator(Component):
             if self.auto_annotate:
                 self.auto_annotate = False
                 self.labeling.curr_bbox = None
+                self.labeling.new_box_requested = False
             
             return True
         # draw bbox following mouse coords
@@ -555,9 +559,9 @@ class Annotator(Component):
             )
             self.image_data.img_info.bboxes.append(bbox_copy)
         
-        if imgui.is_key_pressed(glfw.KEY_SPACE) and self.labeling.curr_bbox is not None:
+        if self.classifier is not None and imgui.is_key_pressed(glfw.KEY_SPACE) and self.labeling.curr_bbox is not None:
 
-            auto_classify_label = self.auto_classify(self.labeling.curr_bbox)
+            auto_classify_label = self.auto_classify(self.labeling.curr_bbox) 
             if auto_classify_label != -1:
                 self.labeling.curr_bbox.label = auto_classify_label
                 self.auto_classify_label = -1
@@ -681,9 +685,9 @@ class Annotator(Component):
 
             return iou
     
-    def start_autoann(self, img_path: Path):
+    def start_autoann(self, img_path: Path, od_model_path : str):
         
-        predictions = detect.run(weights="D:/Download/letters_best0507b.pt", imgsz=[1920, 1080], conf_thres=0.2, iou_thres=0.5, save_conf=True,
+        predictions = detect.run(weights=od_model_path, imgsz=[1920, 1080], conf_thres=0.2, iou_thres=0.5, save_conf=True,
                     exist_ok=True, save_txt=False, source=img_path, project=None, name=None,)
 
         for _, (bboxes, img)  in enumerate(predictions):
@@ -723,7 +727,7 @@ class Annotator(Component):
         img.save("lmao.jpg")
         # run predictions
 
-        t = Thread(target=(self.start_autoann), args=(Path("lmao.jpg"), ))
+        t = Thread(target=(self.start_autoann), args=(Path("lmao.jpg"), self.project.od_model_path ))
         t.start()
     
     def explore(self, path):
