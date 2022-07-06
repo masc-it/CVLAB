@@ -4,7 +4,7 @@ from pathlib import Path
 import subprocess
 from threading import Thread
 
-from cvlab.model.data import BBox, ImageInfo
+from cvlab.model.data import BBox, CollectionInfo, ImageInfo
 from cvlab.model.app import App, FileList, Labeling
 from cvlab.gui.base import Component
 from threading import Thread
@@ -147,7 +147,7 @@ class Annotator(Component):
                     state.open_collection_id = collection_id
                     imgs = self.project.get_images(collection_id)
                     
-                    self.__options_controls(collection_id, imgs)
+                    self.__options_controls(self.project.collections[collection_id], imgs)
                         
                     imgui.tree_pop()
 
@@ -160,10 +160,10 @@ class Annotator(Component):
                 imgs = self.project.get_images(collection_id)
 
                 if collection_id == state.open_collection_id: 
-                    self.__options_controls(collection_id, imgs)
+                    self.__options_controls(self.project.collections[collection_id], imgs)
                         
     
-    def __options_controls(self, collection_id : str, imgs : "list[ImageInfo]"):
+    def __options_controls(self, collection_info : CollectionInfo, imgs : "list[ImageInfo]"):
         
         state = self.file_list_state
         key_pressed = 0
@@ -199,7 +199,8 @@ class Annotator(Component):
             self.image_data.img_info = img_i
             if self.image_data.img_info.w is None:
                 self.image_data.img_info._set_size()
-            state.collection_id = collection_id
+                self.project.load_image_annotations(collection_info, img_name=self.image_data.img_info.name)
+            state.collection_id = collection_info.id
             
             state.name = base_p
             if self.image_data.scale_changed:
@@ -215,7 +216,7 @@ class Annotator(Component):
 
             if self.file_list_state.is_open:
                 clicked, _ = imgui.selectable(
-                            label=name + (" OK" if len(img_info.bboxes) > 0 else "") , selected=(state.idx == i and state.collection_id == collection_id)
+                            label=name + (" OK" if len(img_info.bboxes) > 0 else "") , selected=(state.idx == i and state.collection_id == collection_info.id)
                             
                         )
             else: 
@@ -238,7 +239,8 @@ class Annotator(Component):
                     self.image_data.img_info = img_info
                     if self.image_data.img_info.w is None:
                         self.image_data.img_info._set_size()
-                    state.collection_id = collection_id
+                        self.project.load_image_annotations(collection_info, img_name=self.image_data.img_info.name)
+                    state.collection_id = collection_info.id
                     state.idx = i
                     state.name = base_p
                 if self.image_data.scale_changed:

@@ -83,7 +83,7 @@ class Project(object):
                     img_name = f.stem
                     img_ext = f.suffix.replace(".", "")
                     self.imgs[collection_id][img_name] = ImageInfo(img_name, img_ext, coll_info)
-        self.load_annotations()
+        # self.load_annotations()
      
     
     def get_collection(self, collection_id: str) -> CollectionInfo:
@@ -112,8 +112,6 @@ class Project(object):
 
         for collection in self.collections.values():
 
-            if not Path(f"{collection.path}/annotations").exists():
-                continue
             for img_name in self.imgs[collection.id]:
                 img_info : ImageInfo = self.imgs[collection.id][img_name]
 
@@ -126,6 +124,20 @@ class Project(object):
                 bboxes = list(map(lambda x: BBox(x["xmin"],x["ymin"],x["xmax"],x["ymax"], x["label"], x["conf"]), data["bboxes"]))
 
                 img_info.add_bboxes(bboxes)
+    
+    def load_image_annotations(self, collection: CollectionInfo, img_name:str):
+        
+        img_info : ImageInfo = self.imgs[collection.id][img_name]
+
+        annotation_file = f"{collection.path}/annotations/{img_name}.json"
+        if not os.path.exists(annotation_file):
+            return
+        with open(annotation_file, "r") as fp:
+            data = json.load(fp)
+
+        bboxes = list(map(lambda x: BBox(x["xmin"],x["ymin"],x["xmax"],x["ymax"], x["label"], x["conf"]), data["bboxes"]))
+
+        img_info.add_bboxes(bboxes)
 
     def get_image(self, collection_id) -> Generator[ImageInfo, Any, Any]:
         for img in self.imgs[collection_id]:
