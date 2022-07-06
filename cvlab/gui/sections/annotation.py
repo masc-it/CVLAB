@@ -199,7 +199,8 @@ class Annotator(Component):
             self.image_data.img_info = img_i
             if self.image_data.img_info.w is None:
                 self.image_data.img_info._set_size()
-                self.project.load_image_annotations(collection_info, img_name=self.image_data.img_info.name)
+                if not self.project.preload_metadata:
+                    self.project.load_image_annotations(collection_info, img_name=self.image_data.img_info.name)
             state.collection_id = collection_info.id
             
             state.name = base_p
@@ -239,7 +240,8 @@ class Annotator(Component):
                     self.image_data.img_info = img_info
                     if self.image_data.img_info.w is None:
                         self.image_data.img_info._set_size()
-                        self.project.load_image_annotations(collection_info, img_name=self.image_data.img_info.name)
+                        if not self.project.preload_metadata:
+                            self.project.load_image_annotations(collection_info, img_name=self.image_data.img_info.name)
                     state.collection_id = collection_info.id
                     state.idx = i
                     state.name = base_p

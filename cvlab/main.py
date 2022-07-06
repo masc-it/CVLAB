@@ -5,7 +5,7 @@ import os
 import sys
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 backend = "glfw"
-
+import argparse
 import glfw
 from imgui.integrations.glfw import GlfwRenderer
 
@@ -42,7 +42,7 @@ def fb_to_window_factor(window):
     return max(float(fb_w) / win_w, float(fb_h) / win_h)
 
 
-def main_glfw():
+def main_glfw(args):
     global app
     global home
     global exportDialog
@@ -74,7 +74,7 @@ def main_glfw():
 
 
     print("Initializing...")
-    projects = Project.load_projects()
+    projects = Project.load_projects(args.fast_load)
     
     for i, project in enumerate(projects):
         print(f"{i+1} - {project.name}", end="\n", flush=True)
@@ -243,10 +243,13 @@ def docking_space(name: str):
     imgui.end()
 
 if __name__ == "__main__":
-    imgui.create_context()
-
-    io = imgui.get_io()
     
     backend = "glfw"
-    main_glfw()
+
+    parser = argparse.ArgumentParser("CVLAB")
+
+    parser.add_argument("--fast_load", action="store_true", help="Optimize loading time when data is served over the network. Lazy load of image annotations and metadata. Data info ")
+    
+    args = parser.parse_args()
+    main_glfw(args)
     

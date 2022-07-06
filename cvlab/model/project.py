@@ -17,7 +17,9 @@ CVLAB_PROJECTS_DIR = "cvlab_projects/"
 
 class Project(object):
     
-    def __init__(self, name:str, info_obj: list[str], project_path:str) -> None:
+    def __init__(self, name:str, info_obj: list[str], project_path:str, fast_load = True) -> None:
+        
+        self.preload_metadata = not fast_load
         self.name = name
         self.info_obj = info_obj
         self.collections_obj : list[str] = info_obj["collections"]
@@ -83,7 +85,9 @@ class Project(object):
                     img_name = f.stem
                     img_ext = f.suffix.replace(".", "")
                     self.imgs[collection_id][img_name] = ImageInfo(img_name, img_ext, coll_info)
-        # self.load_annotations()
+        
+        if self.preload_metadata:
+            self.load_annotations()
      
     
     def get_collection(self, collection_id: str) -> CollectionInfo:
@@ -110,15 +114,17 @@ class Project(object):
     
     def load_annotations(self, ):
 
-        for collection in self.collections.values():
+        for collection in tqdm(self.collections.values()):
 
-            for img_name in self.imgs[collection.id]:
+            annotations_dir = Path(collection.path) / "annotations"
+
+            if not annotations_dir.exists():
+                continue
+            for annotation in annotations_dir.glob("*.json"):
+                img_name = annotation.stem
                 img_info : ImageInfo = self.imgs[collection.id][img_name]
 
-                annotation_file = f"{collection.path}/annotations/{img_name}.json"
-                if not os.path.exists(annotation_file):
-                    continue
-                with open(annotation_file, "r") as fp:
+                with open(annotation, "r") as fp:
                     data = json.load(fp)
 
                 bboxes = list(map(lambda x: BBox(x["xmin"],x["ymin"],x["xmax"],x["ymax"], x["label"], x["conf"]), data["bboxes"]))
@@ -337,7 +343,7 @@ class Project(object):
 
 
     @staticmethod
-    def load_projects() -> list[Project]:
+    def load_projects(fast_load:bool) -> list[Project]:
 
         _projects = []
         for p in Path(CVLAB_PROJECTS_DIR).glob("*"):
@@ -347,7 +353,7 @@ class Project(object):
 
             with open(p / "info.json", "r") as fp:
                 info_obj = json.load(fp)
-            _projects.append(Project(p.stem, info_obj, p.as_posix()))
+            _projects.append(Project(p.stem, info_obj, p.as_posix(), fast_load=fast_load))
         
         return _projects
     
