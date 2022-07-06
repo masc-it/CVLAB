@@ -1,8 +1,6 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 import time
 import os
+import sys
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 backend = "glfw"
 
@@ -14,14 +12,15 @@ from stb import image as im
 import imgui
 
 from cvlab.model.project import Project
-import ctypes
 
 from cvlab.model.app import App
 from cvlab.gui.sections.home import Home
 
 from cvlab.gui.dialogs.export import ExportDatasetDialog
-myappid = 'mascit.app.cvlab' # arbitrary string
-ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+if sys.platform == "win32":
+    import ctypes
+    myappid = 'mascit.app.cvlab'
+    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
 app = App()
 
@@ -83,9 +82,11 @@ def main_glfw():
     font_scaling_factor = fb_to_window_factor(window)
     io.font_global_scale = 1. / font_scaling_factor
     
-    font_config = imgui.FontConfig(oversample_h=4.0, oversample_v=4.0, rasterizer_multiply=0.9)
+    # default font
+    font_config = imgui.FontConfig(oversample_h=2.0, oversample_v=2.0, rasterizer_multiply=0.9)
     io.fonts.add_font_from_file_ttf("Roboto-Regular.ttf", 18, font_config, io.fonts.get_glyph_ranges_default())
 
+    # headers font
     roboto_large = io.fonts.add_font_from_file_ttf(
         "Roboto-Regular.ttf", 30, imgui.FontConfig(oversample_h=2.0, oversample_v=2.0 )
     )

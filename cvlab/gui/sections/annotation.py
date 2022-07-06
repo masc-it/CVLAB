@@ -102,8 +102,7 @@ class Annotator(Component):
 
         autoclassify_click = imgui.button("Add boxes to KB")
         if autoclassify_click:
-            #annotation.add_bboxes_to_kb(frame_data, self.img_info)
-            pass
+           self.add_bboxes_to_kb()
 
         imgui.same_line()
         
@@ -684,7 +683,7 @@ class Annotator(Component):
     
     def start_autoann(self, img_path: Path):
         
-        predictions = detect.run(weights="D:/Download/letters_best0207.pt", imgsz=[1280, 1090], conf_thres=0.2, iou_thres=0.5, save_conf=True,
+        predictions = detect.run(weights="D:/Download/letters_best0507b.pt", imgsz=[1920, 1080], conf_thres=0.2, iou_thres=0.5, save_conf=True,
                     exist_ok=True, save_txt=False, source=img_path, project=None, name=None,)
 
         for _, (bboxes, img)  in enumerate(predictions):
