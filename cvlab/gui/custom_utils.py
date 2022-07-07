@@ -152,3 +152,4 @@ def get_image_size(img_path):
 
     img = Image.open(img_path)
     return [img.size[0], img.size[1]]
+

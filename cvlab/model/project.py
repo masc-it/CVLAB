@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 import os, glob, json
 from pathlib import Path
+from cvlab.autoannotate_utils.unsupervised_classification import PseudoClassifier
 from cvlab.model.data import *
 from typing import Generator, Any
 import zipfile
@@ -207,29 +208,40 @@ class Project(object):
                         json.dump(data, fp, indent=1 )
                     img_info.set_changed(False)
 
-    def save_all_bounding_boxes(self, out_path: Path):
 
-        out_path.mkdir(exist_ok=True)
+    def refresh_kb(self, pseudo_classifier: PseudoClassifier):
 
-        for collection in self.collections.values():
+
+        for collection in tqdm(list(self.collections.values())):
             for img_name in self.imgs[collection.id]:
                 img_info : ImageInfo = self.imgs[collection.id][img_name]
+                pseudo_classifier.add_bboxes_to_kb(img_info)
 
-                img = Image.open(img_info.path).convert("RGB")
-                img_path = Path(img_info.path)
-                for i, bbox in enumerate(img_info.bboxes):
 
-                    class_name = self.labels.labels_map[bbox.label].label 
-                    random_name = f"{collection.name}_{img_path.stem}_{i}"
-                    p_dir = (out_path / class_name)
-                    p_dir.mkdir(exist_ok=True)
+    def export_as_ssl_dataset(self, out_path: Path):
 
-                    crop_path = (p_dir / random_name ).with_suffix(".jpg")
+        out_path.mkdir(exist_ok=True)
+        with open(out_path / "files.txt", "w") as fp:
+            for collection in tqdm(list(self.collections.values())):
+                for img_name in self.imgs[collection.id]:
+                    img_info : ImageInfo = self.imgs[collection.id][img_name]
 
-                    crop = img.crop((math.ceil(bbox.xmin), math.ceil(bbox.ymin), math.ceil(bbox.xmax), math.ceil(bbox.ymax)))
-                    crop.save(crop_path)
+                    img = Image.open(img_info.path).convert("RGB")
+                    img_path = Path(img_info.path)
+                    for i, bbox in enumerate(img_info.bboxes):
 
-                print(f"SAVED -{img_info.path}")
+                        class_name = self.labels.labels_map[bbox.label].label 
+                        random_name = f"{collection.name}_{img_path.stem}_{i}"
+                        p_dir = (out_path / class_name)
+                        p_dir.mkdir(exist_ok=True)
+
+                        crop_path = (p_dir / random_name ).with_suffix(".jpg")
+
+                        if not crop_path.exists():
+                            crop = img.crop((math.ceil(bbox.xmin), math.ceil(bbox.ymin), math.ceil(bbox.xmax), math.ceil(bbox.ymax)))
+                            crop.save(crop_path)
+                
+                        fp.write(f"{class_name}/{random_name}.jpg\n")
 
 
     """ def save_settings(self):
@@ -343,10 +355,10 @@ class Project(object):
 
 
     @staticmethod
-    def load_projects(fast_load:bool) -> list[Project]:
+    def load_projects(fast_load:bool = False, project_base_path = CVLAB_PROJECTS_DIR) -> list[Project]:
 
         _projects = []
-        for p in Path(CVLAB_PROJECTS_DIR).glob("*"):
+        for p in Path(project_base_path).glob("*"):
             
             if not p.is_dir():
                 continue
@@ -437,16 +449,6 @@ class Project(object):
         
         print(f"{project_name} has been successfully setup. You can customize your labels directly in CVLAB.")
 
-def load_projects2(project_base_path):
-
-    projects = []
-    for p in Path(project_base_path).glob("*"):
-        
-        with open(p / "info.json", "r") as fp:
-            info_obj = json.load(fp)
-        projects.append(Project(os.path.basename(p), info_obj, p))
-    
-    return projects
 
 if __name__ == "__main__":
     for p in Project.load_projects():

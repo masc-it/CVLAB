@@ -3,6 +3,7 @@ import math
 from pathlib import Path
 import subprocess
 from threading import Thread
+from cvlab.autoannotate_utils.unsupervised_classification import PseudoClassifier
 
 from cvlab.model.data import BBox, CollectionInfo, ImageInfo
 from cvlab.model.app import App, FileList, Labeling
@@ -45,7 +46,7 @@ class Annotator(Component):
         self.allow_edit = False
         self.interaction_bbox : BBox = None
         self.is_opening_file = False
-        self.classifier = self.app.classifier
+        self.classifier : PseudoClassifier = self.app.classifier
         
 
     def main(self):
@@ -95,7 +96,7 @@ class Annotator(Component):
         if self.project.pseudo_classifier is not None:
             autoclassify_click = imgui.button("Add boxes to KB")
             if autoclassify_click:
-                self.add_bboxes_to_kb()
+                self.classifier.add_bboxes_to_kb(self.image_data.img_info)
 
             imgui.same_line()
         
@@ -614,27 +615,6 @@ class Annotator(Component):
     
     # AUTO ANNOTATION / CLASSIFICATION
 
-    def add_bboxes_to_kb(self):
-
-        img_info_path = Path(self.image_data.img_info.path)
-
-        img = PILImage.open(img_info_path).convert("RGB")
-
-        for i, bbox in enumerate(self.image_data.img_info.bboxes):
-            random_name = f"{img_info_path.stem}_{i}"
-            crop_path = (self.classifier.kb_path / "imgs" / random_name ).with_suffix(".jpg")
-
-            if crop_path.exists():
-                continue
-            scaled_bbox = bbox.scale((self.image_data.img_info.w, self.image_data.img_info.h), (self.image_data.img_info.orig_w, self.image_data.img_info.orig_h))
-            crop = img.crop((math.ceil(scaled_bbox.xmin), math.ceil(scaled_bbox.ymin), math.ceil(scaled_bbox.xmax), math.ceil(scaled_bbox.ymax)))
-            
-            crop.save(crop_path)
-
-            self.classifier.add_img_to_kb( img_info_path, crop_path, bbox.label)
-
-        self.classifier.save_kb_single(img_info_path.stem)
-        print("kb saved")
 
     def auto_classify(self, bbox: BBox):
 
