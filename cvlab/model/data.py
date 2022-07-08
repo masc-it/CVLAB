@@ -78,7 +78,7 @@ class ImageInfo(object):
         self.scale = 1.0
         self.is_changed = False
         self.w = None
-        self._set_size()
+        # self._set_size()
     
     def add_bbox(self, bbox: BBox):
         self.bboxes.append(bbox)
