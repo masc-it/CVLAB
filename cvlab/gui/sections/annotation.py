@@ -195,13 +195,14 @@ class Annotator(Component):
             print(base_p)
 
             self.image_data.name = name
-            self.project.save_annotations()
             
             self.image_data.img_info = img_i
             if self.image_data.img_info.w is None:
                 self.image_data.img_info._set_size()
-                if not self.project.preload_metadata:
+                if not self.project.preload_metadata and len(self.image_data.img_info.bboxes) == 0:
                     self.project.load_image_annotations(collection_info, img_name=self.image_data.img_info.name)
+            else:
+                self.project.save_annotations()
             state.collection_id = collection_info.id
             
             state.name = base_p
@@ -236,13 +237,15 @@ class Annotator(Component):
                     self.image_data.scale_changed = True
                     base_p = name
                     self.image_data.name = name
-                    self.project.save_annotations()
                     
                     self.image_data.img_info = img_info
                     if self.image_data.img_info.w is None:
                         self.image_data.img_info._set_size()
-                        if not self.project.preload_metadata:
+                        if not self.project.preload_metadata and len(self.image_data.img_info.bboxes) == 0:
                             self.project.load_image_annotations(collection_info, img_name=self.image_data.img_info.name)
+                    else:
+                        self.project.save_annotations()
+
                     state.collection_id = collection_info.id
                     state.idx = i
                     state.name = base_p
@@ -666,7 +669,7 @@ class Annotator(Component):
     
     def start_autoann(self, img_path: Path, od_model_path : str):
         
-        predictions = detect.run(weights=od_model_path, imgsz=[1920, 1080], conf_thres=0.2, iou_thres=0.5, save_conf=True,
+        predictions = detect.run(weights=od_model_path, imgsz=[1920, 1080], conf_thres=0.3, iou_thres=0.45, save_conf=True,
                     exist_ok=True, save_txt=False, source=img_path, project=None, name=None,)
 
         for _, (bboxes, img)  in enumerate(predictions):

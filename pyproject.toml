@@ -39,6 +39,8 @@ dependencies = [
     "tqdm",
     "PyOpenGL",
     "Pillow",
+    "imagesize",
+    "orjson",
     "onnx",
     "onnxruntime",
     "opencv-python-headless<=4.5.3.56",

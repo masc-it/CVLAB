@@ -9,16 +9,18 @@ from typing import Generator, Any
 import zipfile
 from io import BytesIO
 from collections import namedtuple
-
+from PIL import Image
 from tqdm.auto import tqdm
 
 import cvlab.gui.custom_utils as custom_utils
+import imagesize
+import orjson
 
 CVLAB_PROJECTS_DIR = "cvlab_projects/"
 
 class Project(object):
     
-    def __init__(self, name:str, info_obj: list[str], project_path:str, fast_load = True) -> None:
+    def __init__(self, name:str, info_obj: list[str], project_path:str, fast_load = False) -> None:
         
         self.preload_metadata = not fast_load
         self.name = name
@@ -88,6 +90,7 @@ class Project(object):
                     self.imgs[collection_id][img_name] = ImageInfo(img_name, img_ext, coll_info)
         
         if self.preload_metadata:
+            print("Loading annotations...")
             self.load_annotations()
      
     
@@ -114,7 +117,7 @@ class Project(object):
                     json.dump(data, fp, indent=1)
     
     def load_annotations(self, ):
-
+        
         for collection in tqdm(self.collections.values()):
 
             annotations_dir = Path(collection.path) / "annotations"
@@ -125,12 +128,14 @@ class Project(object):
                 img_name = annotation.stem
                 img_info : ImageInfo = self.imgs[collection.id][img_name]
 
-                with open(annotation, "r") as fp:
-                    data = json.load(fp)
+                data = orjson.loads(open(annotation, "r").read())
+                """ with open(annotation, "r") as fp:
+                    data = json.load(fp) """
 
                 bboxes = list(map(lambda x: BBox(x["xmin"],x["ymin"],x["xmax"],x["ymax"], x["label"], x["conf"]), data["bboxes"]))
 
                 img_info.add_bboxes(bboxes)
+    
     
     def load_image_annotations(self, collection: CollectionInfo, img_name:str):
         
@@ -210,7 +215,6 @@ class Project(object):
 
 
     def refresh_kb(self, pseudo_classifier: PseudoClassifier):
-
 
         for collection in tqdm(list(self.collections.values())):
             for img_name in self.imgs[collection.id]:
@@ -352,7 +356,32 @@ class Project(object):
                 yield splits[i]
 
         zf.close()
+    
 
+    def build_metadata_index(self):
+
+        with open(self.index_path, "r") as fp:
+            index : dict[str, dict] = json.load(fp)
+        # a dictionary with files metadata. 
+        # at startup check for new files and update the dictionary
+        # coll_id -> image_name -> width, height
+        changed = False
+        for collection in tqdm(list(self.collections.values())):
+            for img_name in self.imgs[collection.id]:
+                img_info : ImageInfo = self.imgs[collection.id][img_name]
+
+                if index.get(collection.id).get(img_name) is None:
+                    width, height = imagesize.get(img_info.path)
+                    index[collection.id][img_name] = {
+                        "orig_width": width,
+                        "orig_height": height
+                    }
+                    changed = True
+        
+        if changed:
+            with open(self.index_path, "w") as fp:
+                json.dump(index, fp)
+        return index
 
     @staticmethod
     def load_projects(fast_load:bool = False, project_base_path = CVLAB_PROJECTS_DIR) -> list[Project]:
