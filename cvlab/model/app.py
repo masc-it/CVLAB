@@ -85,29 +85,28 @@ class App(object):
         self.image_data = Image()
         
         self.export_dialog_click = False
+
+        self.images_cache = {}
         
 
     def load_image_from_file(self, image_name, scale=1):
-        image = pygame.image.load(image_name)
+
+        if self.images_cache.get(image_name) is None:
+
+            if len(self.images_cache.keys()) > 100:
+                self.images_cache = {}
+            
+            self.images_cache[image_name] = pygame.image.load(image_name)
+        
+        image = self.images_cache[image_name]
 
         textureSurface = pygame.transform.flip(image, False, True)
         
         orig_width = textureSurface.get_width()
         orig_height = textureSurface.get_height()
 
-        """ print("orig")
-        print(orig_width)
-        print(orig_height) """
-
-        #print(f"orig ar: {orig_width/orig_height}")
-
         if scale != 1:
-            """ w = orig_width * scale
-            w = w * (orig_height/orig_width)
-            h = orig_height """
-            """ basewidth = int(orig_width * scale)
-            wpercent = (basewidth/float(orig_width))
-            hsize = int((float(orig_height)*float(wpercent))) """
+           
             scaled_w = int(orig_width*scale)
             scaled_h = int(orig_height*scale)
             textureSurface = pygame.transform.smoothscale(textureSurface, [scaled_w, scaled_h] )
@@ -116,10 +115,6 @@ class App(object):
         width = textureSurface.get_width()
         height = textureSurface.get_height()
 
-        """ print("scaled")
-        print(width)
-        print(height) """
-        # print(f"scaled ar: {width/height}")
         texture = gl.glGenTextures(1)
         gl.glBindTexture(gl.GL_TEXTURE_2D, texture)
         gl.glPixelStorei(gl.GL_UNPACK_ALIGNMENT, 1)
