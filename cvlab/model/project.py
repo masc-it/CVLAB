@@ -63,6 +63,8 @@ class Project(object):
         print(f"\nLABELS: {list(map(lambda x: x.label, self.labels))}")
 
         print("\nInit images metadata...")
+
+        u_id = 0
         for base_dir in self.collections_obj:
 
             base_dir_path = Path(base_dir)
@@ -75,6 +77,8 @@ class Project(object):
                 pbar.set_postfix({"collection": base_dir, "dir": dir.stem})
                 data_path : Path = dir
                 collection_name = dir.stem
+                if "NO_" in collection_name:
+                    continue
                 collection_id = collection_name.replace(" ", "_")
 
                 coll_info = CollectionInfo(collection_name, collection_id, data_path.as_posix())
@@ -87,7 +91,8 @@ class Project(object):
                 for f in data_path.glob("*.jpg"):
                     img_name = f.stem
                     img_ext = f.suffix.replace(".", "")
-                    self.imgs[collection_id][img_name] = ImageInfo(img_name, img_ext, coll_info)
+                    self.imgs[collection_id][img_name] = ImageInfo(u_id, img_name, img_ext, coll_info)
+                    u_id += 1
         
         if self.preload_metadata:
             print("Loading annotations...")
@@ -326,7 +331,14 @@ class Project(object):
 
         return info
 
-    def export(self, ds_split_map: dict[int, list[ImageInfo]]):
+    def image2byte_array(self, path):
+        imgByteArr = BytesIO()
+        image = Image.open(path).convert("RGB")
+        image.save(imgByteArr, format='JPEG')
+        imgByteArr = imgByteArr.getvalue()
+        return imgByteArr
+
+    def export(self, ds_split_map: dict[int, list[ImageInfo]], export_format: str):
 
         def image2byte_array(path):
             imgByteArr = BytesIO()
@@ -335,28 +347,109 @@ class Project(object):
             imgByteArr = imgByteArr.getvalue()
             return imgByteArr
         
-        from PIL import Image
-        
-        zf = zipfile.ZipFile(self.project_path + "/export.zip", "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9)
-        
-        splits = ["train", "test", "validation"]
-        for i in ds_split_map:
+        if export_format == "yolo":
+            zf = zipfile.ZipFile(self.project_path + "/export.zip", "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9)
+            splits = ["train", "test", "validation"]
+            for i in ds_split_map:
 
-            imgs = ds_split_map[i]
+                imgs = ds_split_map[i]
+
+                for img in imgs:
+                    
+                    if len(img.bboxes) == 0:
+                        continue
+                    img_bytes = image2byte_array(img.path)
+                    
+                    zf.writestr( f"dataset/{splits[i]}/images/{img.collection_info.name}_{img.name}.{img.ext}", img_bytes)
+                    zf.writestr( f"dataset/{splits[i]}/labels/{img.collection_info.name}_{img.name}.txt", img.export_bboxes())
+                
+                    yield splits[i]
+            zf.close()
+        else: # COCO
+            for s in self.export_coco(ds_split_map):
+                yield s
+
+        
+    
+    def export_coco(self, ds_split_map: dict[int, list[ImageInfo]]):
+
+        splits = ["train", "test", "validation"]
+        # setup categories
+        categories = []
+        for label in self.labels:
+            cat_obj = {
+                "id" : int(label.index),
+                "name": label.label,
+                "supercategory": "object"
+            }
+            categories.append(cat_obj)
+        
+        img_id = 0
+        obj_id = 0
+
+        zf = zipfile.ZipFile(self.project_path + "/export_coco.zip", "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9)
+
+        for split_i in ds_split_map:
+            obj = {
+                "images" : [],
+                "annotations": [],
+                "categories" : []
+            }
+            annotations = []
+            images = []
+
+            imgs = ds_split_map[split_i]
 
             for img in imgs:
-                
+
                 if len(img.bboxes) == 0:
                     continue
-                img_bytes = image2byte_array(img.path)
+                if img.w is None:
+                    img._set_size()
+
+                img_obj = {
+                    "id": img_id,
+                    "width": img.orig_w,
+                    "height": img.orig_h,
+                    "file_name": f"{img.collection_info.name}_{img.name}.{img.ext}"
+                }
+                images.append(img_obj)
+
+                for bbox in img.bboxes:
+                    
+                    coco_coords = bbox.to_coco(
+                        (img.scaled_w, img.scaled_h),
+                        (img.orig_w, img.orig_h), 
+                        )
+                    annotation_obj = {
+                        "image_id": img.id,
+                        "id": obj_id,
+                        "category_id" : int(bbox.label),
+                        "bbox": coco_coords,
+                        "area": coco_coords[2] * coco_coords[3],
+                        "is_crowd": 0
+                    }
+
+                    annotations.append(annotation_obj)
+                    obj_id += 1
                 
-                zf.writestr( f"dataset/{splits[i]}/images/{img.collection_info.name}_{img.name}.{img.ext}", img_bytes)
-                zf.writestr( f"dataset/{splits[i]}/labels/{img.collection_info.name}_{img.name}.txt", img.export_bboxes())
-              
-                yield splits[i]
+                img_id += 1
+
+                img_bytes = self.image2byte_array(img.path)
+                zf.writestr( f"dataset/{splits[split_i]}/{img.collection_info.name}_{img.name}.{img.ext}", img_bytes)
+                yield splits[split_i]
+            
+            if len(imgs) > 0:
+                obj["images"] = images
+                obj["categories"] = categories
+                obj["annotations"] = annotations
+                zf.writestr( f"dataset/annotations/{splits[split_i]}.json", json.dumps(obj, indent=2))
 
         zf.close()
-    
+          
+                
+    def export_yolo(self, ds_split_map: dict[int, list[ImageInfo]]):
+        pass
 
     def build_metadata_index(self):
 

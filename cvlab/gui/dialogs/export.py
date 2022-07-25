@@ -18,6 +18,8 @@ class ExportDatasetDialog(Component):
 
         self.export_collection_name = None
 
+        self.export_format = "yolo"
+
     def main(self):
         self.show_export_modal()
 
@@ -75,6 +77,14 @@ class ExportDatasetDialog(Component):
             #print(imgui.get_content_region_available())
             imgui.dummy(10, imgui.get_content_region_available().y - 30)
             #imgui.set_cursor_pos_y(imgui.get_content_region_available().y - 30)
+
+            if imgui.radio_button("Yolo", self.export_format == "yolo"):
+                self.export_format = "yolo"
+            
+            imgui.same_line()
+            if imgui.radio_button("COCO", self.export_format == "coco"):
+                self.export_format = "coco"
+
             export_clicked = imgui.button("Export")
             if export_clicked:
                 self.export_running = True
@@ -125,7 +135,7 @@ class ExportDatasetDialog(Component):
 
         ds_split_map = self.__update_ds_split_count()
 
-        for i, coll_name in enumerate(self.project.export(ds_split_map)):
+        for i, coll_name in enumerate(self.project.export(ds_split_map, self.export_format)):
             self.export_progress = i+1
             self.export_collection_name = coll_name
         self.export_running = False

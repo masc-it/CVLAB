@@ -65,10 +65,16 @@ class BBox(object):
         y = y*dh
         h = h*dh
         return (x,y,w,h)
+    
+    def to_coco(self, in_size : tuple[int, int], out_size : tuple[int, int],):
+
+        box = self.scale(in_size, out_size)
+        
+        return (box.xmin,box.ymin,box.width,box.height)
 
 class ImageInfo(object):
 
-    def __init__(self, name, extension, collection_info: CollectionInfo) -> None:
+    def __init__(self, id: int, name, extension, collection_info: CollectionInfo) -> None:
         self.name = name
         self.ext = extension
         self.collection_info = collection_info
@@ -78,6 +84,8 @@ class ImageInfo(object):
         self.scale = 1.0
         self.is_changed = False
         self.w = None
+
+        self.id = id
         # self._set_size()
     
     def add_bbox(self, bbox: BBox):
@@ -139,12 +147,12 @@ class ImageInfo(object):
         if self.w is None:
             self._set_size()
         for i, bbox in enumerate(self.bboxes):
-            if bbox.xmin < 0 or bbox.ymin < 0 or bbox.xmax < 0 or bbox.ymax < 0:
+            """ if bbox.xmin < 0 or bbox.ymin < 0 or bbox.xmax < 0 or bbox.ymax < 0:
                 print(f"WARNING: {self.path} - {i}th label is corrupt")
                 continue
             if bbox.xmax - bbox.xmin < 5 or bbox.ymax - bbox.ymin < 5:
                 print(f"WARNING: {self.path} - {i}th label very small")
-                continue
+                continue """
             yolo_coords = bbox.to_yolo(
                 (self.scaled_w, self.scaled_h),
                 (self.orig_w, self.orig_h), 
@@ -152,6 +160,7 @@ class ImageInfo(object):
             annotations.append(f'{bbox.label} ' + " ".join([str(a) for a in yolo_coords]) + '\n') #  {bbox.conf}
             # fp.write(f'{bbox["label"]} ' + " ".join([str(a) for a in yolo_coords]) + f' {bbox["conf"]}\n')
         return "".join(annotations)
+    
     
 class LabelInfo(object):
     def __init__(self, index : str, label : str, rgb : list[float], shortcut: str) -> None:
@@ -181,7 +190,7 @@ class Labels(object):
         self.labels_map[label.index] = label
         self.shortcuts[label.shortcut] = label
 
-    def __getitem__(self, i):
+    def __getitem__(self, i) -> LabelInfo:
         return self.labels[i]
 
 
