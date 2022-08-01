@@ -667,7 +667,7 @@ class Annotator(Component):
     
     def start_autoann(self, img_path: Path, od_model_path : str):
         
-        predictions = detect.run(weights=od_model_path, imgsz=[1280, 1280], conf_thres=0.5, iou_thres=0.3, save_conf=True,
+        predictions = detect.run(weights=od_model_path, imgsz=[1280, 1280], conf_thres=0.4, iou_thres=0.3, save_conf=True,
                     exist_ok=True, save_txt=False, source=img_path, project=None, name=None,)
 
         for _, (bboxes, img)  in enumerate(predictions):
