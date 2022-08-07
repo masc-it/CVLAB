@@ -422,12 +422,12 @@ class Project(object):
                         (img.orig_w, img.orig_h), 
                         )
                     annotation_obj = {
-                        "image_id": img.id,
+                        "image_id": img_id,
                         "id": obj_id,
                         "category_id" : int(bbox.label),
                         "bbox": coco_coords,
                         "area": coco_coords[2] * coco_coords[3],
-                        "is_crowd": 0
+                        "iscrowd": 0
                     }
 
                     annotations.append(annotation_obj)
