@@ -1,0 +1,52 @@
+[build-system]
+requires = ["flit_core >=3.2,<4"]
+build-backend = "flit_core.buildapi"
+
+[tool.flit.module]
+name = "cvlab"
+
+[project]
+name = "cvlab-gui"
+authors = [
+    {name = "Mauro Sciancalepore", email = "mascit.info@gmail.com"}
+]
+
+readme = "README.md"
+dynamic = ["version", "description"]
+requires-python = ">=3.7"
+classifiers = [
+    "Intended Audience :: Information Technology",
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: MacOS",
+    "Development Status :: 3 - Alpha",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Typing :: Typed"
+    
+]
+dependencies = [
+    "pyimgui-wheels",
+    "numpy",
+    "pandas",
+    "seaborn",
+    "faiss-cpu",
+    "torch",
+    "torchvision",
+    "glfw",
+    "pygame",
+    "PyYAML",
+    "tqdm",
+    "PyOpenGL",
+    "Pillow",
+    "imagesize",
+    "orjson",
+    "onnx",
+    "onnxruntime",
+    "opencv-python-headless<=4.5.3.56",
+    "stbpy",
+    "pydantic >=1.6.2,!=1.7,!=1.7.1,!=1.7.2,!=1.7.3,!=1.8,!=1.8.1,<2.0.0",
+]
+
+[project.urls]
+Source = "https://github.com/masc-it/CVLAB"

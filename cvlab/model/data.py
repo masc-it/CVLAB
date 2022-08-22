@@ -1,9 +1,8 @@
 from __future__ import annotations
-import math
-from PIL import Image
+
 from copy import deepcopy
 import os, glob
-
+import imagesize
 
 class BBox(object):
 
@@ -66,19 +65,28 @@ class BBox(object):
         y = y*dh
         h = h*dh
         return (x,y,w,h)
+    
+    def to_coco(self, in_size : tuple[int, int], out_size : tuple[int, int],):
+
+        box = self.scale(in_size, out_size)
+        
+        return (box.xmin,box.ymin,box.width,box.height)
 
 class ImageInfo(object):
 
-    prev_scale = 0.0
-    scale = 1.0
-    is_changed = False
-    def __init__(self, name, extension, collection_info: CollectionInfo) -> None:
+    def __init__(self, id: int, name, extension, collection_info: CollectionInfo) -> None:
         self.name = name
         self.ext = extension
         self.collection_info = collection_info
         self.path = collection_info.path + f"/{self.name}.{extension}"
         self.bboxes : list[BBox] = []
-        self._set_size()
+        self.prev_scale = 0.0
+        self.scale = 1.0
+        self.is_changed = False
+        self.w = None
+
+        self.id = id
+        # self._set_size()
     
     def add_bbox(self, bbox: BBox):
         self.bboxes.append(bbox)
@@ -87,13 +95,17 @@ class ImageInfo(object):
         self.bboxes.extend(bboxes)
     
     def _set_size(self):
-        img = Image.open(self.path)
-        self.w = img.size[0]
-        self.h = img.size[1]
-        self.orig_w = img.size[0]
-        self.orig_h = img.size[1]
-        self.scaled_w = img.size[0]
-        self.scaled_h = img.size[1]
+        #img = Image.open(self.path)
+        width, height = imagesize.get(self.path)
+
+        self.w = width
+        self.h = height
+
+        self.orig_w = width
+        self.orig_h = height
+
+        self.scaled_w = width
+        self.scaled_h = height
     
     def change_scale(self, scale: float):
 
@@ -132,10 +144,15 @@ class ImageInfo(object):
     def export_bboxes(self, format="yolo"):
 
         annotations = []
+        if self.w is None:
+            self._set_size()
         for i, bbox in enumerate(self.bboxes):
-            if bbox.xmin < 0 or bbox.ymin < 0 or bbox.xmax < 0 or bbox.ymax < 0:
-                print(f"WARNING: {self.name} - {i}th label is corrupt")
+            """ if bbox.xmin < 0 or bbox.ymin < 0 or bbox.xmax < 0 or bbox.ymax < 0:
+                print(f"WARNING: {self.path} - {i}th label is corrupt")
                 continue
+            if bbox.xmax - bbox.xmin < 5 or bbox.ymax - bbox.ymin < 5:
+                print(f"WARNING: {self.path} - {i}th label very small")
+                continue """
             yolo_coords = bbox.to_yolo(
                 (self.scaled_w, self.scaled_h),
                 (self.orig_w, self.orig_h), 
@@ -143,6 +160,7 @@ class ImageInfo(object):
             annotations.append(f'{bbox.label} ' + " ".join([str(a) for a in yolo_coords]) + '\n') #  {bbox.conf}
             # fp.write(f'{bbox["label"]} ' + " ".join([str(a) for a in yolo_coords]) + f' {bbox["conf"]}\n')
         return "".join(annotations)
+    
     
 class LabelInfo(object):
     def __init__(self, index : str, label : str, rgb : list[float], shortcut: str) -> None:
@@ -172,7 +190,7 @@ class Labels(object):
         self.labels_map[label.index] = label
         self.shortcuts[label.shortcut] = label
 
-    def __getitem__(self, i):
+    def __getitem__(self, i) -> LabelInfo:
         return self.labels[i]
 
 
@@ -214,14 +232,14 @@ class Experiment(object):
 
 
     def add_image(self, img_info: ImageInfo, load_annotations=False):
-        from custom_utils import load_img_annotations
+        from cvlab.gui.custom_utils import load_img_annotations
         self.imgs.append(img_info)
         if load_annotations:
             load_img_annotations(img_info)
     
     def _load_images(self, load_annotations = True):
         import glob, os
-        from custom_utils import load_img_annotations
+        from cvlab.gui.custom_utils import load_img_annotations
         self.imgs = []
         for img in glob.glob(f"{self.data_path}/*.*"):
             name_ext = os.path.basename(img).rsplit('.')

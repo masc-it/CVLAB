@@ -4,8 +4,6 @@ import os
 import sys
 from pathlib import Path
 import cv2
-import torch
-
 
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]  # YOLOv5 root directory
@@ -14,12 +12,6 @@ if str(ROOT) not in sys.path:
 
 ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 
-from utils.torch_utils import select_device, time_sync
-from utils.plots import Annotator, colors, save_one_box
-from utils.general import (check_img_size,
-                        increment_path, non_max_suppression, scale_coords, xyxy2xywh)
-from utils.datasets import IMG_FORMATS, VID_FORMATS, LoadImages
-from models.common import DetectMultiBackend
 
 def run(weights=ROOT / 'yolov5s.pt',  # model.pt path(s)
         source=ROOT / 'data/images',  # file/dir/URL/glob, 0 for webcam
@@ -50,7 +42,13 @@ def run(weights=ROOT / 'yolov5s.pt',  # model.pt path(s)
         dnn=False,  # use OpenCV DNN for ONNX inference
         ):
     
-    
+    import torch
+    from utils.torch_utils import select_device, time_sync
+    from utils.plots import Annotator, colors, save_one_box
+    from utils.general import (check_img_size,
+                            increment_path, non_max_suppression, scale_coords, xyxy2xywh)
+    from utils.datasets import IMG_FORMATS, VID_FORMATS, LoadImages
+    from models.common import DetectMultiBackend
     source = str(source)
 
     save_dir = None

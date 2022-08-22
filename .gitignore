@@ -1,5 +1,6 @@
 *.c
 __pycache__/
+cvlab_projects/
 projects*/
 runs*/
 venv_*/
@@ -7,3 +8,8 @@ build/
 dist/
 *.pt
 *.onnx
+notebooks/
+*.bat
+*.jpg
+*.spec
+*.log

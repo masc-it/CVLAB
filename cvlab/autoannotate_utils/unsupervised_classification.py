@@ -1,3 +1,4 @@
+import math
 from pathlib import Path
 from typing import Any, Tuple, Union
 import onnx
@@ -6,6 +7,8 @@ from PIL import Image
 import torchvision.transforms as T
 import onnxruntime
 import numpy as np
+
+from cvlab.model.data import ImageInfo
 
 np.random.seed(42)
 
@@ -29,6 +32,9 @@ class PseudoClassifier(object):
 
         self.similarity = FeatureSimilarity(dim=features_size)
 
+        self.imgs_path = (self.kb_path / "imgs")
+
+        self.imgs_path.mkdir(exist_ok=True)
         if len(list(self.kb_path.glob("*.npz"))) > 0:
             self.kb, self.labels, self.kb_dict = self.load_kb()
             self.similarity.fit(np.array(self.kb, dtype=np.float32))
@@ -83,14 +89,14 @@ class PseudoClassifier(object):
             for img_name in obj["img_names"]:
                 fp.write(img_name + "\n")
 
-    def add_img_to_kb(self, parent_path: Path, img_path: Path, label: int):
+    def add_img_to_kb(self, parent_name: str, img_path: Path, label: int):
 
         img = Image.open(img_path).convert("RGB")
         
         feature_vector = self.predict(img)[0][0]
         # save to image .npz
         img_name = img_path.stem
-        parent_name = parent_path.stem
+        
         if self.kb_dict.get(parent_name) is None:
             self.kb_dict[parent_name] = {"features" : [], "labels": [], "img_names": []}
 
@@ -145,6 +151,37 @@ class PseudoClassifier(object):
         ort_inputs = {self.onnx_model.get_inputs()[0].name: img}
         ort_outs = self.onnx_model.run(None, ort_inputs)
         return ort_outs
+    
+    def add_bboxes_to_kb(self, img_info: ImageInfo ):
+
+        """
+            Update knowledge base given an image.
+            - Generate and save image crops from bounding boxes
+            - Generate related feature vectors
+        """
+
+        img_info_path = Path(img_info.path)
+
+        img = Image.open(img_info_path).convert("RGB")
+        if img_info.w is None:
+            img_info._set_size()
+        for i, bbox in enumerate(img_info.bboxes):
+            random_name = f"{img_info.collection_info.name}_{img_info_path.stem}_{i}_{bbox.label}"
+            crop_path = (self.imgs_path / random_name ).with_suffix(".jpg")
+
+            if crop_path.exists():
+                continue
+            scaled_bbox = bbox.scale((img_info.w, img_info.h), (img_info.orig_w, img_info.orig_h))
+            crop = img.crop((math.ceil(scaled_bbox.xmin), math.ceil(scaled_bbox.ymin), math.ceil(scaled_bbox.xmax), math.ceil(scaled_bbox.ymax)))
+            
+            crop.save(crop_path)
+
+            # update faiss index
+            self.add_img_to_kb( f"{img_info.collection_info.name}_{img_info_path.stem}", crop_path, bbox.label)
+
+        if len(img_info.bboxes) > 0:
+            self.save_kb_single(f"{img_info.collection_info.name}_{img_info_path.stem}")
+        # print("kb saved")
     
 
 class FeatureSimilarity(object):
