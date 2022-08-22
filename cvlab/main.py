@@ -81,7 +81,10 @@ def main_glfw(args):
     
     print("Project index -> ", end="")
 
-    proj_idx = int(input())
+    if len(projects) > 1:
+        proj_idx = int(input())
+    else:
+        proj_idx = 1
 
     proj_idx = max(1, proj_idx)
     app.project : Project = projects[proj_idx-1]
