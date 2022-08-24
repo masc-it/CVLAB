@@ -115,13 +115,13 @@ class Annotator(Component):
             glfw.set_cursor(self.app.glfw["window"], glfw.create_standard_cursor(self.app.glfw["previous_cursor"]))
 
         mouse_wheel = self.app.io.mouse_wheel
-        if self.app.is_dialog_open == False and mouse_wheel != 0 and self.app.io.mouse_pos[0] > self.x_offset and\
-            self.app.io.mouse_pos[0] < self.app.viewport[0] - self.scroll_right_margin:
+        if self.app.is_dialog_open == False and mouse_wheel != 0 and imgui.is_key_down(glfw.KEY_Z): # and self.app.io.mouse_pos[0] > self.x_offset and self.app.io.mouse_pos[0] < self.app.viewport[0] - self.scroll_right_margin:
             self.image_data.scale += 0.2 if mouse_wheel > 0 else -0.2
             self.image_data.scale = min(4.0, self.image_data.scale)
             self.image_data.scale = max(0.5, self.image_data.scale)
             self.image_data.scale_changed = True
-    
+
+
     def __files_list(self, ):
         
         """
