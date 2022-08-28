@@ -3,8 +3,11 @@ from __future__ import annotations
 from PIL import Image
 import os, json
 from copy import deepcopy
-
+import sys
+import subprocess
 from cvlab.model.data import BBox, ImageInfo
+
+FILEBROWSER_PATH = os.path.join(os.getenv('WINDIR'), 'explorer.exe')
 
 def yolo_to_x0y0(yolo_pred, input_w, input_h):
 
@@ -153,3 +156,17 @@ def get_image_size(img_path):
     img = Image.open(img_path)
     return [img.size[0], img.size[1]]
 
+def explore(path):
+        
+    if sys.platform == "win32":
+        # explorer would choke on forward slashes
+        path = os.path.normpath(path)
+
+        if os.path.isdir(path):
+            subprocess.run([FILEBROWSER_PATH, path])
+        elif os.path.isfile(path):
+            subprocess.run([FILEBROWSER_PATH, '/select,', path])
+    elif sys.platform == 'linux2':
+        subprocess.run(["xdg-open", path])
+    elif sys.platform == 'darwin':
+        subprocess.call(["open", "-R", path])

@@ -1,4 +1,5 @@
 import math
+import multiprocessing
 from pathlib import Path
 from typing import Any, Tuple, Union
 import onnx
@@ -7,9 +8,9 @@ from PIL import Image
 import torchvision.transforms as T
 import onnxruntime
 import numpy as np
-
+from tqdm.auto import tqdm
 from cvlab.model.data import ImageInfo
-
+import time
 np.random.seed(42)
 
 class PseudoClassifier(object):
@@ -51,24 +52,69 @@ class PseudoClassifier(object):
     def to_numpy(tensor):
         return tensor.detach().cpu().numpy() if tensor.requires_grad else tensor.cpu().numpy()
 
+    @staticmethod
+    def _load_features(datain):
+        
+        features_file : Path = datain[0]
+        f_name : Path= datain[1]
+
+        features_dict = {}
+        features = []
+        labels = []
+        data = np.load(features_file)
+        features_dict[features_file.stem] = {"features": data["features"].tolist(), "labels": data["labels"].tolist()}
+
+        names = []
+        with open(f_name, "r") as fp:
+            
+            names = list(map(lambda x: x.strip(), fp.readlines()))
+            #for l in fp.readlines():
+            #    names.append(l.strip())
+        features_dict[features_file.stem]["img_names"] = names
+
+        features.extend(features_dict[features_file.stem]["features"])
+        labels.extend(features_dict[features_file.stem]["labels"])
+        # print(f"{f_name} DONE.")
+        return features, labels, features_dict
+
     def load_kb(self):
         
         features_dict = {}
         features = []
         labels = []
-        for features_file in self.kb_path.glob("*.npz"):
+
+        t0 = time.time()
+        """ feature_files = list(self.kb_path.glob("*.npz"))
+        
+        paths = list(map(lambda x: (self.kb_path / x.stem).with_suffix(".txt"), feature_files))
+        data = list(zip(feature_files, paths))
+        
+        pool = multiprocessing.Pool(processes=6)
+
+        values = pool.map(self._load_features, data)
+
+        for f, l, fd in values:
+            features_dict = {**features_dict, **fd}
+            features.extend(f)
+            labels.extend(l) """
+
+        for features_file in tqdm(self.kb_path.glob("*.npz")):
             data = np.load(features_file)
             features_dict[features_file.stem] = {"features": data["features"].tolist(), "labels": data["labels"].tolist()}
 
             names = []
             with open((self.kb_path / features_file.stem).with_suffix(".txt"), "r") as fp:
-                for l in fp.readlines():
-                    names.append(l.strip())
+                
+                names = list(map(lambda x: x.strip(), fp.readlines()))
+                #for l in fp.readlines():
+                #    names.append(l.strip())
             features_dict[features_file.stem]["img_names"] = names
 
             features.extend(features_dict[features_file.stem]["features"])
             labels.extend(features_dict[features_file.stem]["labels"])
         
+       
+        print(f"FINISHED IN {time.time() - t0}")
         return features, labels, features_dict
 
     def save_kb(self):

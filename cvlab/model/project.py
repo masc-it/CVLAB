@@ -350,6 +350,7 @@ class Project(object):
         if export_format == "yolo":
             zf = zipfile.ZipFile(self.project_path + "/export.zip", "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9)
             splits = ["train", "test", "validation"]
+            zf.write(Path(self.project_path) / "data.yaml", "dataset/data.yaml")
             for i in ds_split_map:
 
                 imgs = ds_split_map[i]

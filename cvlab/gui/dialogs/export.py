@@ -2,6 +2,7 @@
 import threading
 from cvlab.gui.base import Component
 from cvlab.model.app import App
+from cvlab.gui.custom_utils import explore
 
 import imgui
 
@@ -107,6 +108,11 @@ class ExportDatasetDialog(Component):
                 self.export_collection_name = None
                 self.app.is_dialog_open = False
                 imgui.close_current_popup()
+            imgui.same_line()
+            open_folder_clicked = imgui.button("Open Folder")
+            if open_folder_clicked:
+                p = self.project.project_path
+                explore(p)
             imgui.end_popup()
 
     

@@ -4,6 +4,7 @@ import argparse
 import json
 from pycocotools.coco import COCO
 
+
 def show(args):
 
     folder: Path = Path(args.folder)

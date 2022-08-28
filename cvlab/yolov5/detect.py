@@ -11,7 +11,15 @@ if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))  # add ROOT to PATH
 
 ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
+from utils.datasets import IMG_FORMATS, VID_FORMATS, LoadImages
+import torch
+from utils.torch_utils import select_device, time_sync
+from utils.plots import Annotator, colors, save_one_box
+from utils.general import (check_img_size,
+                        increment_path, non_max_suppression, scale_coords, xyxy2xywh)
 
+from models.common import DetectMultiBackend
+model = None
 
 def run(weights=ROOT / 'yolov5s.pt',  # model.pt path(s)
         source=ROOT / 'data/images',  # file/dir/URL/glob, 0 for webcam
@@ -42,13 +50,8 @@ def run(weights=ROOT / 'yolov5s.pt',  # model.pt path(s)
         dnn=False,  # use OpenCV DNN for ONNX inference
         ):
     
-    import torch
-    from utils.torch_utils import select_device, time_sync
-    from utils.plots import Annotator, colors, save_one_box
-    from utils.general import (check_img_size,
-                            increment_path, non_max_suppression, scale_coords, xyxy2xywh)
-    from utils.datasets import IMG_FORMATS, VID_FORMATS, LoadImages
-    from models.common import DetectMultiBackend
+    global model
+
     source = str(source)
 
     save_dir = None
@@ -65,7 +68,8 @@ def run(weights=ROOT / 'yolov5s.pt',  # model.pt path(s)
 
     # Load model
     device = select_device(device)
-    model = DetectMultiBackend(weights, device=device, dnn=dnn, data=data)
+    if model is None:
+        model = DetectMultiBackend(weights, device=device, dnn=dnn, data=data)
     stride, names, pt, jit, onnx, engine = model.stride, model.names, model.pt, model.jit, model.onnx, model.engine
     imgsz = check_img_size(imgsz, s=stride)  # check image size
 
