@@ -347,22 +347,28 @@ class Project(object):
             imgByteArr = imgByteArr.getvalue()
             return imgByteArr
         
+        # TODO pass as param
+        one_class = True
+
         if export_format == "yolo":
             zf = zipfile.ZipFile(self.project_path + "/export.zip", "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9)
             splits = ["train", "test", "validation"]
-            zf.write(Path(self.project_path) / "data.yaml", "dataset/data.yaml")
+            if not one_class:
+                zf.write(Path(self.project_path) / "data.yaml", "dataset/data.yaml")
+            else:
+                zf.write(Path(self.project_path) / "data_single_class.yaml", "dataset/data.yaml")
             for i in ds_split_map:
 
                 imgs = ds_split_map[i]
 
                 for img in imgs:
                     
-                    if len(img.bboxes) == 0:
+                    if len(img.bboxes) == 0 and "empty_" not in img.collection_info.name:
                         continue
                     img_bytes = image2byte_array(img.path)
                     
                     zf.writestr( f"dataset/{splits[i]}/images/{img.collection_info.name}_{img.name}.{img.ext}", img_bytes)
-                    zf.writestr( f"dataset/{splits[i]}/labels/{img.collection_info.name}_{img.name}.txt", img.export_bboxes())
+                    zf.writestr( f"dataset/{splits[i]}/labels/{img.collection_info.name}_{img.name}.txt", img.export_bboxes(one_class=one_class))
                 
                     yield splits[i]
             zf.close()
@@ -371,7 +377,6 @@ class Project(object):
                 yield s
 
         
-    
     def export_coco(self, ds_split_map: dict[int, list[ImageInfo]]):
 
         splits = ["train", "test", "validation"]
@@ -449,9 +454,6 @@ class Project(object):
         zf.close()
           
                 
-    def export_yolo(self, ds_split_map: dict[int, list[ImageInfo]]):
-        pass
-
     def build_metadata_index(self):
 
         with open(self.index_path, "r") as fp:

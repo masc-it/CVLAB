@@ -44,10 +44,12 @@ class ExportDatasetDialog(Component):
                     self.export_table[coll] = [False] * 3
                     #if i <= 2:
                     #    frame_data["export_table"][coll][i] = True
-                    if "train" in coll.name.lower():
-                        self.export_table[coll][0] = True
-                    else:
+                    if "val" in coll.name.lower():
                         self.export_table[coll][2] = True
+                    elif "test" in coll.name.lower():
+                        self.export_table[coll][1] = True
+                    else:
+                        self.export_table[coll][0] = True
             
             if self.export_counts == {}:
                 self.__update_ds_split_count()
@@ -61,7 +63,7 @@ class ExportDatasetDialog(Component):
                     imgui.table_set_column_index(i+1)
                     if imgui.radio_button(f"##exp_table{coll.name}_{el}", self.export_table[coll][i]):
                         self.export_table[coll] = [False] * 3
-                        self.export_table[coll][i] = True
+                        #self.export_table[coll][i] = True
                         self.__update_ds_split_count()
             
             imgui.table_next_row()

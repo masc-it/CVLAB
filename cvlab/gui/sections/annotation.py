@@ -12,7 +12,7 @@ from threading import Thread
 import imgui
 import glfw
 import numpy as np
-from cvlab.yolov5 import detect
+from cvlab.yolov5new import detect
 import os
 from PIL import Image as PILImage
 import sys
@@ -667,16 +667,16 @@ class Annotator(Component):
     
     def start_autoann(self, img_path: Path, od_model_path : str):
         
-        predictions = detect.run(weights=od_model_path, imgsz=[1280, 1280], conf_thres=0.4, iou_thres=0.3, save_conf=True,
-                    exist_ok=True, save_txt=False, source=img_path, project=None, name=None,)
+        predictions = detect.run(weights=od_model_path, imgsz=[2048, 2048], conf_thres=0.1, iou_thres=0.2, save_conf=True,
+                    device="cpu", exist_ok=True, save_txt=False, source=img_path, project=None, name=None,)
 
-        for _, (bboxes, img)  in enumerate(predictions):
+        for _, (bboxes, _)  in enumerate(predictions):
             
             #print(bboxes)
             # exp.imgs.append(img_info)
             for bbox in bboxes:
                 bbox : BBox = BBox(bbox["xmin"], bbox["ymin"], bbox["xmax"], bbox["ymax"], bbox["class"], bbox["conf"])
-
+                #bbox.label = self.auto_classify(bbox)
                 if self.image_data.img_info.scale != 1:
                     bbox = bbox.scale((self.image_data.img_info.orig_w, self.image_data.img_info.orig_h), (self.image_data.img_info.scaled_w, self.image_data.img_info.scaled_h))
 

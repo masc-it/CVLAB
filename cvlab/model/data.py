@@ -141,12 +141,14 @@ class ImageInfo(object):
     def set_changed(self, value=True):
         self.is_changed = value
     
-    def export_bboxes(self, format="yolo"):
+    def export_bboxes(self, one_class=False):
 
         annotations = []
         if self.w is None:
             self._set_size()
         for i, bbox in enumerate(self.bboxes):
+            if one_class:
+                bbox.label = "0"
             """ if bbox.xmin < 0 or bbox.ymin < 0 or bbox.xmax < 0 or bbox.ymax < 0:
                 print(f"WARNING: {self.path} - {i}th label is corrupt")
                 continue
